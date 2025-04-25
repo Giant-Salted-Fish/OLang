@@ -1,0 +1,11 @@
+
+def test(a, b)
+{
+    // This is a test function
+    let func = (a, b) -> {
+        return a + b;
+    };
+    let c = a + 9 * 5;
+    let d = 4 * (b - 2);
+    return func(c, d);
+}
