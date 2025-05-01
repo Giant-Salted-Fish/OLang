@@ -1,11 +1,11 @@
-from typing import Iterable, Sequence, Iterator, Generic, TypeVar, Callable
+from typing import Iterable, Sequence, Iterator, TypeVar, Callable
 import re
 
 
 T = TypeVar("T")
 
 
-class Token(Generic[T]):
+class Token[T]:
 	def __init__(self, type_: T | None, lines: Sequence[str], line_num: int, col_idx: int, token_len: int):
 		self._type = type_
 		self._lines = lines
@@ -29,7 +29,7 @@ class Token(Generic[T]):
 		return f"Token(type={repr(self.GetType())}, value={repr(self.GetValue())})"
 
 
-class Scaner(Generic[T]):
+class Scaner[T]:
 	def __init__(
 		self,
 		match_lst: Iterable[tuple[T, Callable[[str, int], int]]],
@@ -38,7 +38,7 @@ class Scaner(Generic[T]):
 		self._match_lst = match_lst
 		self._match_space = match_space
 	
-	def tokenize(self, src: str) -> Iterator[Token[T]]:
+	def Tokenize(self, src: str) -> Iterator[Token[T]]:
 		line_num = 0
 		col_idx = 0
 		lines = src.splitlines()
@@ -65,17 +65,17 @@ class Scaner(Generic[T]):
 				col_idx += match_len
 			line_num += 1
 		yield Token(None, lines, line_num - 1, col_idx, 0)
-
-
-def build_scaner(types: Iterable[tuple[T, str]]) -> Scaner[T]:
-	def build_matcher(pattern: str):
-		r = re.compile(pattern)
-		def match(s: str, offset: int):
-			m = r.match(s, offset)
-			if m is None:
-				return 0
-			return m.end() - offset
-		return match
-	match_lst = tuple((type_, build_matcher(pattern)) for type_, pattern in types)
-	match_space = build_matcher(r"\s*")
-	return Scaner(match_lst, match_space)
+	
+	@classmethod
+	def Build(cls, types: Iterable[tuple[T, str]]) -> "Scaner[T]":
+		def build_matcher(pattern: str):
+			r = re.compile(pattern)
+			def match(s: str, offset: int):
+				m = r.match(s, offset)
+				if m is None:
+					return 0
+				return m.end() - offset
+			return match
+		match_lst = tuple((type_, build_matcher(pattern)) for type_, pattern in types)
+		match_space = build_matcher(r"\s*")
+		return Scaner(match_lst, match_space)
