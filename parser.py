@@ -1,6 +1,7 @@
 from scaner import Token
 from typing import Iterable, Iterator, Collection, TypeVar, Callable, NamedTuple, Sequence
 
+
 T = TypeVar("T")
 
 

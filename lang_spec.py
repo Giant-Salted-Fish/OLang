@@ -148,6 +148,8 @@ token_types = [
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
 	("RETURN", r"return"),
 	("DEF", r"def"),
+	("LET", r"let"),
+	("->", r"->"),
 	("||", r"\|\|"),
 	("&&", r"&&"),
 	("==", r"=="),
@@ -175,43 +177,56 @@ token_types = [
 terminals = set(t for t, _ in token_types)
 
 syntax_rules = [
-	Production("S", ("stmt_lst",), lambda x: x),
-	# func_def -> id ( arg_lst ) body
-	Production("func_def", ("DEF", "ID", "(", "arg_lst", ")", "body"), lambda id, lpr, arg_lst, rpr, body: NodeCallable(id, arg_lst, body)),
-	# arg_lst -> arg_lst' | ε
-	Production("arg_lst", ("arg_lst'",), lambda lst: lst),
-	Production("arg_lst", (), lambda: NodeList(())),
-	# arg_lst' -> arg_lst' , id | id
-	Production("arg_lst'", ("arg_lst'", ",", "ID"), lambda lst, comma, id: (*lst, id)),
-	Production("arg_lst'", ("ID",), lambda id: id),
-	# compound_statement -> { stmt_lst }
-	Production("comp_stmt", ("{", "stmt_lst", "}"), lambda lpr, stmt_lst, rpr: stmt_lst),
+	("S", ("stmt_lst",), lambda x: x),
+	# fun_decl -> def id arg body
+	("fun_decl", ("DEF", "ID", "tup_def", "body"), lambda _def, _id, arg, body: NodeDecl(_id, NodeCallable(arg, body))),
+	("fun_def", ("tup_def", "->", "comp_stmt"), lambda tup, op, body: NodeCallable(tup, body)),
+	("tup_def", ("(", "fld_lst", ")"), lambda lpr, lst, rpr: None),
+	# fld_lst -> fld_lst' | ε
+	("fld_lst", ("fld_lst'",), lambda lst: lst),
+	("fld_lst", (), lambda: NodeList(())),
+	# fld_lst' -> fld_lst' , id | id
+	("fld_lst'", ("fld_lst'", ",", "ID"), lambda lst, comma, _id: (*lst, _id)),
+	("fld_lst'", ("ID",), lambda _id: _id),
+	# comp_stmt -> { stmt_lst }
+	("comp_stmt", ("{", "stmt_lst", "}"), lambda lpr, stmt_lst, rpr: stmt_lst),
 	# stmt_lst -> stmt_lst' | ε
-	Production("stmt_lst", ("stmt_lst'",), lambda lst: lst),
-	Production("stmt_lst", (), lambda: NodeList(())),
+	("stmt_lst", ("stmt_lst'",), lambda lst: lst),
+	("stmt_lst", (), lambda: NodeList(())),
 	# stmt_lst' -> stmt_lst' stmt | stmt
-	Production("stmt_lst'", ("stmt_lst'", "stmt"), lambda lst, s: NodeList(lst.node_lst + (s,))),
-	Production("stmt_lst'", ("stmt",), lambda stmt: NodeList((stmt,))),
-	# stmt -> expr ; | decl ; | RETURN expr ; | ;
-	Production("stmt", ("expr", ";"), lambda expr, semicolon: expr),
-	Production("stmt", ("decl", ";"), lambda decl, semicolon: decl),
-	Production("stmt", ("RETURN", "expr", ";"), lambda func: func),
-	# (Production("stmt", (";",)), lambda semicolon: NodeDummy()),
-	# decl -> id = expr
-	Production("decl", ("ID", "=", "expr"), lambda id, equal, expr: NodeDecl(id, expr)),
+	("stmt_lst'", ("stmt_lst'", "stmt"), lambda lst, s: NodeList(lst.node_lst + (s,))),
+	("stmt_lst'", ("stmt",), lambda stmt: NodeList((stmt,))),
+	# stmt -> expr ; | decl ; | fun_decl ; | RETURN expr ; | ;
+	("stmt", ("expr", ";"), lambda expr, end: expr),
+	("stmt", ("decl", ";"), lambda decl, end: decl),
+	("stmt", ("fun_decl", ";"), lambda decl: decl),
+	("stmt", ("asgn", ";"), lambda asgn, end: asgn),
+	("stmt", ("RETURN", "expr", ";"), lambda ret, expr, end: expr),
+	# (Production("stmt", (";",)), lambda end: NodeDummy()),
+	# decl -> let id = expr
+	("decl", ("LET", "ID", "=", "expr"), lambda let, _id, equal, expr: NodeDecl(_id, expr)),
+	# asgn -> id = expr
+	("asgn", ("ID", "=", "expr"), lambda _id, equal, expr: NodeAssign(_id, expr)),
 	# expr -> expr + term | expr - term | term
-	Production("expr", ("expr", "op-add", "term"), lambda left, op, right: NodeBinary(op, left, right)),
-	Production("expr", ("term",), lambda x: x),
+	("expr", ("expr", "op-add", "term"), lambda left, op, right: NodeBinary(op, left, right)),
+	("expr", ("term",), lambda x: x),
 	# term -> term * factor | term / factor | factor
-	Production("term", ("term", "op-mul", "factor"), lambda left, op, right: NodeBinary(op, left, right)),
-	Production("term", ("factor",), lambda x: x),
+	("term", ("term", "op-mul", "factor"), lambda left, op, right: NodeBinary(op, left, right)),
+	("term", ("factor",), lambda x: x),
 	# factor -> ( expr ) | id | int
-	Production("factor", ("(", "expr", ")"), lambda lpr, expr, rpr: expr),
-	Production("factor", ("ID",), NodeRef),
-	Production("factor", ("INT",), NodeInt),
+	("factor", ("(", "expr", ")"), lambda lpr, expr, rpr: expr),
+	("factor", ("ID",), NodeRef),
+	("factor", ("INT",), NodeInt),
 	
-	Production("op-add", ("+",), lambda plus: plus),
-	Production("op-add", ("-",), lambda minus: minus),
-	Production("op-mul", ("*",), lambda mul: mul),
-	Production("op-mul", ("/",), lambda div: div),
+	("op-add", ("+",), lambda plus: plus),
+	("op-add", ("-",), lambda minus: minus),
+	("op-mul", ("*",), lambda mul: mul),
+	("op-mul", ("/",), lambda div: div),
+	("op_cmp", ("==",), lambda eq: eq),
+	("op-cmp", ("!=",), lambda neq: neq),
+	("op-cmp", (">=",), lambda gte: gte),
+	("op-cmp", ("<=",), lambda lse: lse),
+	("op-cmp", (">",), lambda gt: gt),
+	("op-cmp", ("<",), lambda ls: ls),
 ]
+syntax_rules = [Production(*p) for p in syntax_rules]
