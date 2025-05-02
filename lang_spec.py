@@ -8,45 +8,6 @@ class Node:
 		raise NotImplementedError
 
 
-class NodeUnary(Node):
-	def __init__(self, op: Token, operand: Node):
-		self.op = op
-		self.operand = operand
-	
-	def __repr__(self):
-		return f"{self.__class__.__name__}({self.op.GetValue()}, {self.operand})"
-	
-	def Eval(self, ctx):
-		if self.op == "+":
-			return +self.operand.Eval(ctx)
-		elif self.op == "-":
-			return -self.operand.Eval(ctx)
-		assert False
-
-
-class NodeBinary(Node):
-	def __init__(self, op: Token, left: Node, right: Node):
-		self.op = op
-		self.left = left
-		self.right = right
-	
-	def __repr__(self):
-		return f"{self.__class__.__name__}({self.op.GetValue()}, {self.left}, {self.right})"
-	
-	def Eval(self, ctx):
-		match self.op.GetValue():
-			case "+":
-				return self.left.Eval(ctx) + self.right.Eval(ctx)
-			case "-":
-				return self.left.Eval(ctx) - self.right.Eval(ctx)
-			case "*":
-				return self.left.Eval(ctx) * self.right.Eval(ctx)
-			case "/":
-				return self.left.Eval(ctx) / self.right.Eval(ctx)
-			case _:
-				assert False
-
-
 class NodeInt(Node):
 	def __init__(self, token: Token):
 		self.token = token
@@ -56,6 +17,17 @@ class NodeInt(Node):
 	
 	def Eval(self, ctx):
 		return int(self.token.GetValue())
+
+
+class NodeRef(Node):
+	def __init__(self, token: Token):
+		self.token = token
+	
+	def __repr__(self):
+		return f"{self.__class__.__name__}({self.token.GetValue()})"
+	
+	def Eval(self, ctx):
+		return ctx.Lookup(self.token.GetValue())
 
 
 class NodeList(Node):
@@ -73,82 +45,83 @@ class NodeList(Node):
 
 
 class NodeDecl(Node):
-	def __init__(self, id: Token, expr: Node):
-		self.id = id
+	def __init__(self, label: Token, expr: Node):
+		self.label = label
 		self.expr = expr
 	
 	def __repr__(self):
-		return f"{self.__class__.__name__}({self.id.GetValue()}, {self.expr})"
+		return f"{self.__class__.__name__}({self.label.GetValue()}, {self.expr})"
 	
 	def Eval(self, ctx):
 		val = self.expr.Eval(ctx)
-		ctx.PushVar(self.id.GetValue(), val)
-		return val
-
-
-class NodeRef(Node):
-	def __init__(self, token: Token):
-		self.token = token
-	
-	def __repr__(self):
-		return f"{self.__class__.__name__}({self.token.GetValue()})"
-	
-	def Eval(self, ctx):
-		return ctx.Lookup(self.token.GetValue())
-
-
-class NodeDummy(Node):
-	def __init__(self):
-		pass
-	
-	def __repr__(self):
-		return f"{self.__class__.__name__}()"
-	
-	def Eval(self, ctx):
+		ctx.Declare(self.label.GetValue(), val)
 		return None
 
 
+class NodeAssign(Node):
+	def __init__(self, label: Token, expr: Node):
+		self.label = label
+		self.expr = expr
+	
+	def Eval(self, ctx):
+		old = ctx.Lookup(self.label.GetValue())
+		val = self.expr.Eval(ctx)
+		ctx.Declare(self.label.GetValue(), val)
+		return None
+
+
+type Param = Token | tuple[Param, ...]
 class NodeCallable(Node):
-	def __init__(self, arg_lst: tuple[Token, ...], body: NodeList):
-		self.arg_lst = arg_lst
+	def __init__(self, param: Param, body: Node):
+		self.param = param
 		self.body = body
 	
 	def __repr__(self):
-		return f"{self.__class__.__name__}({self.arg_lst}, {self.body})"
+		return f"{self.__class__.__name__}({self.param}, {self.body})"
 	
 	def Eval(self, ctx):
-		ctx.PushVar(self.id.GetValue(), self)
-		return None
+		return self
 
 
+type Arg = Node | tuple[Arg, ...]
 class NodeApply(Node):
-	def __init__(self, id: Token, arg_lst: tuple[Node]):
-		self.id = id
-		self.arg_lst = arg_lst
+	def __init__(self, callable: Node, arg: Arg):
+		self.callable = callable
+		self.arg = arg
 	
 	def __repr__(self):
-		return f"{self.__class__.__name__}({self.id.GetValue()}, {self.arg_lst})"
+		return f"{self.__class__.__name__}({self.callable}, {self.callable})"
 	
 	def Eval(self, ctx):
-		func = ctx.Lookup(self.id.GetValue())
+		func = self.callable.Eval(ctx)
 		if not isinstance(func, NodeCallable):
-			raise ValueError(f"{self.id.GetValue()} is not a function")
+			raise ValueError(f"{self.callable} is not callable")
 		
-		if len(func.arg_lst) != len(self.arg_lst):
-			raise ValueError(f"Function {func.id.GetValue()} expects {len(func.arg_lst)} arguments, got {len(self.arg_lst)}")
-		
+		def match_param(param, arg):
+			if isinstance(param, tuple):
+				assert isinstance(arg, tuple)
+				assert len(param) == len(arg)
+				for p, a in zip(param, arg):
+					match_param(p, a)
+			else:
+				assert isinstance(param, Token)
+				assert isinstance(arg, Node)
+				ctx.Declare(param.GetValue(), arg.Eval(ctx))
 		ctx.PushScope()
-		for arg, param in zip(self.arg_lst, func.arg_lst):
-			ctx.PushVar(param.GetValue(), arg.Eval(ctx))
-		
-		return func.body.Eval(ctx)
+		match_param(func.param, self.arg)
+		ret_val = func.body.Eval(ctx)
+		ctx.PopScope()
+		return ret_val
 
-token_types = [
-	("INT", r"[1-9]\d*"),
-	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
+
+TOKEN_TYPES = [
 	("RETURN", r"return"),
 	("DEF", r"def"),
 	("LET", r"let"),
+	
+	("INT", r"[1-9]\d*"),
+	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
+	
 	("->", r"->"),
 	("||", r"\|\|"),
 	("&&", r"&&"),
@@ -162,6 +135,9 @@ token_types = [
 	("-", r"-"),
 	("*", r"\*"),
 	("/", r"/"),
+	("%", r"%"),
+	("!", r"!"),
+	("~", r"~"),
 	("=", r"="),
 	("{", r"\{"),
 	("}", r"\}"),
@@ -171,62 +147,117 @@ token_types = [
 	(")", r"\)"),
 	(",", r","),
 	(";", r";"),
+	
+	# TODO: Handle mult-line comment
 	("COMMENT", r"//.*"),
 ]
 
-terminals = set(t for t, _ in token_types)
+TERMINALS = set(t for t, _ in TOKEN_TYPES)
 
-syntax_rules = [
-	("S", ("stmt_lst",), lambda x: x),
-	# fun_decl -> def id arg body
-	("fun_decl", ("DEF", "ID", "tup_def", "body"), lambda _def, _id, arg, body: NodeDecl(_id, NodeCallable(arg, body))),
-	("fun_def", ("tup_def", "->", "comp_stmt"), lambda tup, op, body: NodeCallable(tup, body)),
-	("tup_def", ("(", "fld_lst", ")"), lambda lpr, lst, rpr: None),
-	# fld_lst -> fld_lst' | ε
-	("fld_lst", ("fld_lst'",), lambda lst: lst),
-	("fld_lst", (), lambda: NodeList(())),
-	# fld_lst' -> fld_lst' , id | id
-	("fld_lst'", ("fld_lst'", ",", "ID"), lambda lst, comma, _id: (*lst, _id)),
-	("fld_lst'", ("ID",), lambda _id: _id),
-	# comp_stmt -> { stmt_lst }
-	("comp_stmt", ("{", "stmt_lst", "}"), lambda lpr, stmt_lst, rpr: stmt_lst),
-	# stmt_lst -> stmt_lst' | ε
-	("stmt_lst", ("stmt_lst'",), lambda lst: lst),
-	("stmt_lst", (), lambda: NodeList(())),
-	# stmt_lst' -> stmt_lst' stmt | stmt
-	("stmt_lst'", ("stmt_lst'", "stmt"), lambda lst, s: NodeList(lst.node_lst + (s,))),
-	("stmt_lst'", ("stmt",), lambda stmt: NodeList((stmt,))),
+SYNTAX_RULES = [
+	("S", ("stmt*",), lambda x: x),
+	
+	("stmt*", ("stmt+",), lambda lst: lst),
+	("stmt*", (), lambda: NodeList(())),
+	("stmt+", ("stmt+", "stmt"), lambda lst, s: NodeList(lst.node_lst + (s,))),
+	("stmt+", ("stmt",), lambda stmt: NodeList((stmt,))),
+	
 	# stmt -> expr ; | decl ; | fun_decl ; | RETURN expr ; | ;
 	("stmt", ("expr", ";"), lambda expr, end: expr),
 	("stmt", ("decl", ";"), lambda decl, end: decl),
 	("stmt", ("fun_decl", ";"), lambda decl: decl),
 	("stmt", ("asgn", ";"), lambda asgn, end: asgn),
 	("stmt", ("RETURN", "expr", ";"), lambda ret, expr, end: expr),
-	# (Production("stmt", (";",)), lambda end: NodeDummy()),
-	# decl -> let id = expr
-	("decl", ("LET", "ID", "=", "expr"), lambda let, _id, equal, expr: NodeDecl(_id, expr)),
-	# asgn -> id = expr
-	("asgn", ("ID", "=", "expr"), lambda _id, equal, expr: NodeAssign(_id, expr)),
-	# expr -> expr + term | expr - term | term
-	("expr", ("expr", "op-add", "term"), lambda left, op, right: NodeBinary(op, left, right)),
-	("expr", ("term",), lambda x: x),
-	# term -> term * factor | term / factor | factor
-	("term", ("term", "op-mul", "factor"), lambda left, op, right: NodeBinary(op, left, right)),
-	("term", ("factor",), lambda x: x),
-	# factor -> ( expr ) | id | int
-	("factor", ("(", "expr", ")"), lambda lpr, expr, rpr: expr),
-	("factor", ("ID",), NodeRef),
-	("factor", ("INT",), NodeInt),
+#	("stmt", (";",), lambda end: NodeDummy()),
 	
+	# decl -> let id = expr
+	("decl", ("LET", "ID", "=", "expr"), lambda let, label, equal, expr: NodeDecl(label, expr)),
+	# fun_decl -> def id arg body
+	("fun_decl", ("DEF", "ID", "param", "comp_stmt"), lambda _def, label, arg, body: NodeDecl(label, NodeCallable(arg, body))),
+	# asgn -> id = expr
+	("asgn", ("ID", "=", "expr"), lambda label, equal, expr: NodeAssign(label, expr)),
+	# expr -> lgc_or | fun_def
+	("expr", ("lgc_or",), lambda x: x),
+	("expr", ("fun_def",), lambda x: x),
+	
+	# fun_def -> param -> comp_stmt
+	("fun_def", ("param", "->", "comp_stmt"), lambda arg, op, body: NodeCallable(arg, body)),
+	# param -> ( field* )
+	("param", ("(", "field*", ")"), lambda lpr, lst, rpr: lst),
+	("field*", ("field+",), lambda lst: lst),
+	("field*", (), lambda: ()),
+	("field+", ("field+", ",", "ID"), lambda lst, comma, label: (*lst, label)),
+	("field+", ("ID",), lambda label: (label,)),
+	# comp_stmt -> { stmt* }
+	("comp_stmt", ("{", "stmt*", "}"), lambda lpr, stmt_lst, rpr: stmt_lst),
+	
+	# lgc_or -> lgc_or || lgc_and | lgc_and
+	("lgc_or", ("lgc_or", "||", "lgc_and"), lambda left, op, right: NodeApply(op, (left, right))),
+	("lgc_or", ("lgc_and",), lambda x: x),
+	
+	# lgc_and -> lgc_and && equality | equality
+	("lgc_and", ("lgc_and", "&&", "equality"), lambda left, op, right: NodeApply(op, (left, right))),
+	("lgc_and", ("equality",), lambda x: x),
+	
+	# equality -> equality ==|!= relational | relational
+	("equality", ("equality", "op-eq", "relational"), lambda left, op, right: NodeApply(op, (left, right))),
+	("equality", ("relational",), lambda x: x),
+	
+	# relational -> relational >=|<=|>|< additive | additive
+	("relational", ("relational", "op-cmp", "additive"), lambda left, op, right: NodeApply(op, (left, right))),
+	("relational", ("additive",), lambda x: x),
+	
+	# additive -> additive +|- multiplicative | multiplicative
+	("additive", ("additive", "op-add", "multiplicative"), lambda left, op, right: NodeApply(op, (left, right))),
+	("additive", ("multiplicative",), lambda x: x),
+	
+	# multiplicative -> multiplicative *|/ unary | unary
+	("multiplicative", ("multiplicative", "op-mul", "unary"), lambda left, op, right: NodeApply(op, (left, right))),
+	("multiplicative", ("unary",), lambda x: x),
+	
+	# unary -> -|!|~ unary | applicative
+	("unary", ("op-pre", "unary"), lambda op, unary: NodeApply(op, (unary,))),
+	("unary", ("applicative",), lambda x: x),
+	
+	# applicative -> applicative arg | primary
+	("applicative", ("applicative", "arg"), NodeApply),
+	("applicative", ("primary",), lambda primary: primary),
+	
+	# arg -> ( expr ) | secondary
+	("arg", ("(", "expr", ")"), lambda lpr, expr, rpr: (expr,)),
+	("arg", ("raw",), lambda x: x),
+	
+	# raw -> int | id | tup
+	("raw", ("INT",), NodeInt),
+	("raw", ("ID",), NodeRef),
+	("primary", ("tup",), lambda x: x),
+	
+	# primary -> raw | ( expr )
+	("primary", ("raw",), lambda x: x),
+	("primary", ("(", "expr", ")"), lambda lpr, expr, rpr: expr),
+	
+	# tup -> ( ) | ( expr , ) | ( expr (,expr)+ ,? )
+	("tup", ("(", ")",), lambda lpr, rpr: ()),
+	("tup", ("(", "expr", ",", ")"), lambda lpr, expr, rpr: (expr,)),
+	("tup", ("(", "expr", "(,expr)+", ",?", ")"), lambda lpr, expr, expr_lst, comma, rpr: (expr,) + expr_lst),
+	("(,expr)+", (",", "expr", "(,expr)+",), lambda comma, expr, expr_lst: (expr, *expr_lst)),
+	("(,expr)+", (",", "expr",), lambda comma, expr: (expr,)),
+	(",?", (",",), lambda x: x),
+	(",?", (), lambda: None),
+	
+	("op-pre", ("!",), lambda not_: not_),
+	("op-pre", ("~",), lambda bit_not: bit_not),
+	("op-pre", ("-",), lambda minus: minus),
 	("op-add", ("+",), lambda plus: plus),
 	("op-add", ("-",), lambda minus: minus),
 	("op-mul", ("*",), lambda mul: mul),
 	("op-mul", ("/",), lambda div: div),
-	("op_cmp", ("==",), lambda eq: eq),
-	("op-cmp", ("!=",), lambda neq: neq),
+	("op-mul", ("%",), lambda mod: mod),
+	("op_eq", ("==",), lambda eq: eq),
+	("op-eq", ("!=",), lambda neq: neq),
 	("op-cmp", (">=",), lambda gte: gte),
 	("op-cmp", ("<=",), lambda lse: lse),
 	("op-cmp", (">",), lambda gt: gt),
 	("op-cmp", ("<",), lambda ls: ls),
 ]
-syntax_rules = [Production(*p) for p in syntax_rules]
+SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
