@@ -104,7 +104,7 @@ class Syntax[T]:
 			for (item, dot_pos), lookahead in new_state.items()
 		)
 	
-	def BuildParser(self):
+	def BuildLR1Parser(self):
 		state_table = {}
 		shift_table = {}
 		reduce_table = {}
@@ -153,7 +153,7 @@ class Syntax[T]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteParse(self, token_stream: Iterator[Token[T]]) -> any:
+	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> any:
 		state_stack = [self.BuildInitialState()]
 		action_stack = []
 		accept = False
