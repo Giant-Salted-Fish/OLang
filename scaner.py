@@ -25,8 +25,8 @@ class Token[T]:
 	def GetColumnNum(self) -> int:
 		return self._col_idx + 1
 	
-	def __repr__(self):
-		return f"Token(type={repr(self.GetType())}, value={repr(self.GetValue())})"
+	def __str__(self):
+		return f"Token(type={repr(self.GetType())}, value={repr(self.GetValue())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
 
 
 class Scaner[T]:

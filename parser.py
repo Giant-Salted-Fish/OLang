@@ -91,8 +91,9 @@ class Syntax[T]:
 			else:
 				new_lookahead |= lookahead
 			
-			for p in self.GetProductionsOf(next_symbol):
-				expand_item(p, 0, new_lookahead)
+			next_prods = self.GetProductionsOf(next_symbol)
+			for p, lkahd in zip(next_prods, [new_lookahead,] + [new_lookahead.copy() for _ in range(len(next_prods) - 1)]):
+				expand_item(p, 0, lkahd)
 		
 		for production, dot_pos, lookaheads in items:
 			expand_item(production, dot_pos, set(lookaheads))
@@ -159,6 +160,9 @@ class Syntax[T]:
 		for token in token_stream:
 			if accept:
 				raise Exception("Unexpected end of input")
+			
+			if token.GetType() == "COMMENT":
+				continue
 			
 			while True:
 				state = state_stack[-1]
