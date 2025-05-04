@@ -13,7 +13,7 @@ class EvaluationContext:
 	def Lookup(self, symbol: str) -> any:
 		return self._symbol_table[symbol] or self._parent_lookup(symbol)
 	
-	def Declare(self, symbol: str, value: T, destructor: Callable[[T], None] = lambda _: None):
+	def Push(self, symbol: str, value: T, destructor: Callable[[T], None] = lambda _: None):
 		self._stack.append(symbol)
 		self._symbol_table[symbol] = (value, destructor)
 	
