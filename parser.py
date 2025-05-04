@@ -78,7 +78,7 @@ class Syntax[T]:
 			
 			new_lookahead = set()
 			for i in range(dot_pos + 1, len(production.rhs)):
-				s = production.rhs[dot_pos + 1]
+				s = production.rhs[i]
 				if following := self.AsTerminal(s):
 					new_lookahead.add(following)
 					break
@@ -191,12 +191,12 @@ class Syntax[T]:
 					raise Exception("Ambiguous")
 				
 				reduce_rule = productions[0]
-				rhs_len = len(reduce_rule.rhs)
-				action_result = reduce_rule.action(*action_stack[-rhs_len:])
-				action_stack = action_stack[:-rhs_len]
+				split_idx = len(action_stack) - len(reduce_rule.rhs)
+				action_result = reduce_rule.action(*action_stack[split_idx:])
+				action_stack = action_stack[:split_idx]
 				action_stack.append(action_result)
 				
-				state_stack = state_stack[:-rhs_len]
+				state_stack = state_stack[:split_idx + 1]
 				if token.GetType() is None and reduce_rule.lhs == self._start_symbol:
 					accept = True
 					break
@@ -289,12 +289,12 @@ class Parser[T]:
 					break
 				
 				if prod := self._reduce_table.get(key):
-					rhs_len = len(prod.rhs)
-					action_result = prod.action(*action_stack[-rhs_len:])
-					action_stack = action_stack[:-rhs_len]
+					split_idx = len(action_stack) - len(prod.rhs)
+					action_result = prod.action(*action_stack[split_idx:])
+					action_stack = action_stack[:split_idx]
 					action_stack.append(action_result)
 					
-					state_stack = state_stack[:-rhs_len]
+					state_stack = state_stack[:split_idx + 1]
 					if token.GetType() is None and prod.lhs == self._syntax.GetStartSymbol():
 						accept = True
 						break
