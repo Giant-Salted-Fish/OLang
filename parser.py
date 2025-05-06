@@ -109,45 +109,47 @@ class Syntax[T]:
 		shift_table = {}
 		reduce_table = {}
 		goto_table = {}
-		def dfs(s: frozenset[Item[T]]):
-			if sid := state_table.get(s):
+		def explore(state: frozenset[Item[T]]) -> int:
+			if sid := state_table.get(state):
 				return sid
 			
 			sid = len(state_table)
-			state_table[s] = sid
+			state_table[state] = sid
 			
-			working_set = set(s)
-			while len(working_set) > 0:
+			working_set = set(it for it in state if it.dot_pos < len(it.production.rhs))
+			while working_set:
 				item = working_set.pop()
-				if item.dot_pos < len(item.production.rhs):
-					next_symbol = item.production.rhs[item.dot_pos]
-					items = [
-						it for it in working_set
-						if it.dot_pos < len(it.production.rhs) and it.production.rhs[it.dot_pos] == next_symbol
-					]
-					working_set.difference_update(items)
-					
-					new_items = [(it.production, it.dot_pos + 1, it.lookaheads) for it in items]
-					new_items.append((item.production, item.dot_pos + 1, item.lookaheads))
-					next_state = self.ExpandState(new_items)
-					next_sid = dfs(next_state)
-					if following := self.AsTerminal(next_symbol):
-						shift_table[(sid, following)] = next_sid
-					else:
-						goto_table[(sid, next_symbol)] = next_sid
+				next_symbol = item.production.rhs[item.dot_pos]
+				items = [
+					it for it in working_set
+					if it.production.rhs[it.dot_pos] == next_symbol
+				]
+				working_set.difference_update(items)
+				items.append(item)
+				
+				new_items = [(it.production, it.dot_pos + 1, it.lookaheads) for it in items]
+				next_state = self.ExpandState(new_items)
+				next_sid = explore(next_state)
+				if following := self.AsTerminal(next_symbol):
+					shift_table[(sid, following)] = next_sid
 				else:
-					for terminal in item.lookaheads:
-						if (sid, terminal) in shift_table:
-							print("Detect shift-reduce conflict")
-							continue
-						
-						if (sid, terminal) in reduce_table:
-							raise Exception("Detect reduce-reduce conflict")
-						
-						reduce_table[(sid, terminal)] = item.production
+					goto_table[(sid, next_symbol)] = next_sid
+			
+			working_set = set(it for it in state if it.dot_pos == len(it.production.rhs))
+			while working_set:
+				item = working_set.pop()
+				for terminal in item.lookaheads:
+					if (sid, terminal) in shift_table:
+						print("Potential shift-reduce conflict")
+						continue
+					
+					if (sid, terminal) in reduce_table:
+						raise Exception("Detect reduce-reduce conflict")
+					
+					reduce_table[(sid, terminal)] = item.production
 			return sid
 		
-		dfs(self.BuildInitialState())
+		explore(self.BuildInitialState())
 		state_tbl: list = [None] * len(state_table)
 		for state, sid in state_table.items():
 			state_tbl[sid] = state
@@ -272,6 +274,9 @@ class Parser[T]:
 		self._reduce_table = reduce_table
 		self._goto_table = goto_table
 	
+	def __str__(self):
+		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
+	
 	def Parse(self, token_stream: Iterator[Token[T]]) -> any:
 		state_stack = [0]
 		action_stack = []
@@ -279,6 +284,9 @@ class Parser[T]:
 		for token in token_stream:
 			if accept:
 				raise Exception("Too much tokens")
+			
+			if token.GetType() == "COMMENT":
+				continue
 			
 			while True:
 				key = (state_stack[-1], token.GetType())
