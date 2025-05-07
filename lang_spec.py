@@ -47,9 +47,6 @@ TERMINALS = set(t for t, _ in TOKEN_TYPES)
 
 SYNTAX_RULES = [
 	("S", ("stmt*",), lambda x: x),
-	
-	# cmpd_stmt: { stmt* }
-	("cmpd_stmt", ("{", "stmt*", "}"), lambda LPR, cmpd, RPR: cmpd),
 	("stmt*", ("stmt+",), lambda cmpd: cmpd),
 	("stmt*", (), lambda: NodeCompound()),
 	("stmt+", ("stmt+", "stmt"), lambda cmpd, stmt: cmpd.Append(stmt)),
@@ -57,12 +54,12 @@ SYNTAX_RULES = [
 	
 	# stmt: (!expr|expr) ;
 	#     | LET expr = (!expr|expr) ;
-	#     | DEF prefix* ID prim cmpd_stmt ;?
+	#     | DEF prefix* ID prim { stmt* } ;?
 	#     | prefix* ID suffix* = (!expr|expr) ;
 	#     | RETURN (!expr|expr) ;
 	("stmt", ("(!expr|expr)", ";"), lambda expr, SEMI: expr),
 	("stmt", ("LET", "expr", "=", "(!expr|expr)", ";"), lambda LET, var, EQ, expr, SEMI: NodeDecl(var, expr)),
-	("stmt", ("DEF", "prefix*", "ID", "prim", "cmpd_stmt", ";?"), lambda DEF, prefix, ID, param, cmpd, SEMI: NodeDecl(NodeLabel(ID).Annotate(*prefix), NodeCallable(param, cmpd))),
+	("stmt", ("DEF", "prefix*", "ID", "prim", "{", "stmt*", "}", ";?"), lambda DEF, prefix, ID, param, LPR, cmpd, RPR, SEMI: NodeDecl(NodeLabel(ID).Annotate(*prefix), NodeCallable(param, cmpd))),
 	("stmt", ("prefix*", "ID", "suffix*", "=", "(!expr|expr)", ";"), lambda prefix, ID, suffix, EQ, expr, SEMI: NodeAssign(NodeLabel(ID).Annotate(*prefix, *suffix), expr)),
 	("stmt", ("RETURN", "(!expr|expr)", ";"), lambda RET, expr, SEMI: expr),
 	("(!expr|expr)", ("!expr",), lambda x: x),
@@ -97,12 +94,9 @@ SYNTAX_RULES = [
 	("(!lmbd|!or|prim)", ("!or",), lambda x: x),
 	("(!lmbd|!or|prim)", ("prim",), lambda x: x),
 	
-	# !lmbd: prim -> !lmbd | prim -> (!or|prim|cmpd_stmt)
+	# !lmbd: prim -> !lmbd | prim -> (!or|prim)
 	("!lmbd", ("prim", "->", "!lmbd"), lambda param, ARROW, body: NodeCallable(param, body)),
-	("!lmbd", ("prim", "->", "(!or|prim|cmpd_stmt)"), lambda param, ARROW, body: NodeCallable(param, body)),
-	("(!or|prim|cmpd_stmt)", ("!or",), lambda x: x),
-	("(!or|prim|cmpd_stmt)", ("prim",), lambda x: x),
-	("(!or|prim|cmpd_stmt)", ("cmpd_stmt",), lambda x: x),
+	("!lmbd", ("prim", "->", "(!or|prim)"), lambda param, ARROW, body: NodeCallable(param, body)),
 	
 	# !or: (!or|prim) || (!and|prim) | !and
 	("!or", ("(!or|prim)", "||", "(!and|prim)"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
@@ -173,10 +167,10 @@ SYNTAX_RULES = [
 	("prim", ("(", "expr", ")"), lambda LPR, x, RPR: x),
 	("prim", ("tup",), lambda x: x),
 	
-	# !prim: ( !expr ) | !tup
+	# !prim: ( !expr ) | !tup | { stmt+ }
 	("!prim", ("(", "!expr", ")"), lambda LPR, expr, RPR: expr),
 	("!prim", ("!tup",), lambda x: x),
-	# TODO: !cmpd_stmt
+	("prim", ("{", "stmt+", "}",), lambda LPR, cmpd, RPR: cmpd),
 	
 	# tup: ( ) | ( expr , ) | ( (expr ,)+ expr ,? )
 	("tup", ("(", ")",), lambda LPR, RPR: NodeTuple()),
