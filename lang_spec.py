@@ -60,7 +60,7 @@ SYNTAX_RULES = [
 	("stmt", ("(!expr|expr)", ";"), lambda expr, SEMI: expr),
 	("stmt", ("LET", "expr", "=", "(!expr|expr)", ";"), lambda LET, var, EQ, expr, SEMI: NodeDecl(var, expr)),
 	("stmt", ("DEF", "prefix*", "ID", "prim", "{", "stmt*", "}", ";?"), lambda DEF, prefix, ID, param, LPR, cmpd, RPR, SEMI: NodeDecl(NodeLabel(ID).Annotate(*prefix), NodeCallable(param, cmpd))),
-	("stmt", ("prefix*", "ID", "suffix*", "=", "(!expr|expr)", ";"), lambda prefix, ID, suffix, EQ, expr, SEMI: NodeAssign(NodeLabel(ID).Annotate(*prefix, *suffix), expr)),
+	("stmt", ("expr", "=", "(!expr|expr)", ";"), lambda var, EQ, expr, SEMI: NodeAssign(var, expr)),
 	("stmt", ("RETURN", "(!expr|expr)", ";"), lambda RET, expr, SEMI: expr),
 	("(!expr|expr)", ("!expr",), lambda x: x),
 	("(!expr|expr)", ("expr",), lambda x: x),
