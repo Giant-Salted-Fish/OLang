@@ -1,6 +1,9 @@
-from typing import Self, Sequence
+from typing import Self, Sequence, Callable, TypeVar
 from scaner import Token
 from interpreter import EvaluationContext
+
+
+T = TypeVar("T")
 
 
 class Node:
@@ -13,7 +16,7 @@ class Node:
 	def Eval(self, ctx: EvaluationContext) -> any:
 		raise NotImplementedError
 	
-	def Unwind(self, val, ctx: EvaluationContext) -> None:
+	def Unwind(self, val: T, put: Callable[[str, T, Callable[[T], None]], None], ctx: EvaluationContext) -> None:
 		raise NotImplementedError
 	
 	def Invoke(self, arg, ctx: EvaluationContext) -> any:
@@ -53,7 +56,7 @@ class NodeInt(Node):
 	def Eval(self, ctx):
 		return int(self.token.GetValue())
 	
-	def Unwind(self, val, ctx):
+	def Unwind(self, val, put, ctx):
 		pass
 	
 	def GenText(self):
@@ -68,10 +71,10 @@ class NodeLabel(Node):
 		return self.GenStr(self.token.GetValue())
 	
 	def Eval(self, ctx):
-		return ctx.Lookup(self.token.GetValue())
+		return ctx.Lookup(self.token.GetValue())[0]
 	
-	def Unwind(self, val, ctx):
-		ctx.Push(self.token.GetValue(), val)
+	def Unwind(self, val, put, ctx):
+		put(self.token.GetValue(), val, lambda _: None)
 	
 	def GenText(self):
 		return self.AppendAnnotText([self.token.GetValue()])
@@ -115,7 +118,7 @@ class NodeDecl(Node):
 	
 	def Eval(self, ctx):
 		val = self.expr.Eval(ctx)
-		self.var.Unwind(val, ctx)
+		self.var.Unwind(val, ctx.Push, ctx)
 		return ()
 	
 	def GenText(self):
@@ -125,21 +128,20 @@ class NodeDecl(Node):
 
 
 class NodeAssign(Node):
-	def __init__(self, label: NodeLabel, expr: Node):
-		self.label = label
+	def __init__(self, var: Node, expr: Node):
+		self.var = var
 		self.expr = expr
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.label}, {self.expr}")
+		return self.GenStr(f"{self.var}, {self.expr}")
 	
 	def Eval(self, ctx):
-		ctx.Pop(self.label.token.GetValue())
 		val = self.expr.Eval(ctx)
-		self.label.Unwind(val, ctx)
+		self.var.Unwind(val, ctx.Update, ctx)
 		return val
 	
 	def GenText(self):
-		lines = self.JoinText(" = ", self.label.GenText(), self.expr.GenText())
+		lines = self.JoinText(" = ", self.var.GenText(), self.expr.GenText())
 		return self.AppendAnnotText(lines)
 
 
@@ -202,13 +204,13 @@ class NodeTuple(Node):
 	def Eval(self, ctx):
 		return tuple(node.Eval(ctx) for node in self.nodes)
 	
-	def Unwind(self, val, ctx):
+	def Unwind(self, val, put, ctx):
 		if not isinstance(val, tuple):
 			raise ValueError(f"Expected tuple, got {val}")
 		
 		assert len(val) == len(self.nodes)
 		for i, node in enumerate(self.nodes):
-			node.Unwind(val[i], ctx)
+			node.Unwind(val[i], put, ctx)
 	
 	def GenText(self):
 		elements = [node.GenText() for node in self.nodes]
@@ -298,3 +300,15 @@ class NodeUnaryOp(Node):
 	def GenText(self):
 		val = self.node.GenText()
 		return [f"{self.op.GetValue()}{val[0]}", *val[1:]]
+
+
+class NodeDeref(Node):
+	def __init__(self, obj: Node, attr: Token):
+		self.obj = obj
+		self.attr = attr
+	
+	def __repr__(self):
+		return self.GenStr(f"{self.obj}, \"{self.attr.GetValue()}\"")
+	
+	def Eval(self, ctx):
+		return getattr(self.obj.Eval(ctx), self.attr.GetValue())

@@ -37,6 +37,7 @@ TOKEN_TYPES = [
 	("@", r"@"),
 	(":", r":"),
 	("->", r"->"),
+	(".", r"\."),
 	(",", r","),
 	
 	# TODO: Handle mult-line comment
@@ -55,7 +56,7 @@ SYNTAX_RULES = [
 	# stmt: (!expr|expr) ;
 	#     | LET expr = (!expr|expr) ;
 	#     | DEF prefix* ID prim { stmt* } ;?
-	#     | prefix* ID suffix* = (!expr|expr) ;
+	#     | expr = (!expr|expr) ;
 	#     | RETURN (!expr|expr) ;
 	("stmt", ("(!expr|expr)", ";"), lambda expr, SEMI: expr),
 	("stmt", ("LET", "expr", "=", "(!expr|expr)", ";"), lambda LET, var, EQ, expr, SEMI: NodeDecl(var, expr)),
@@ -155,11 +156,17 @@ SYNTAX_RULES = [
 	("(+|-|!|~)", ("!",), lambda not_: not_),
 	("(+|-|!|~)", ("~",), lambda bit_not: bit_not),
 	
-	# !app: (!app|prim) (!prim|prim) | !prim
-	("!app", ("(!app|prim)", "(!prim|prim)"), NodeApply),
-	("!app", ("!prim",), lambda x: x),
+	# !app: (!app|prim) (!deref|prim) | !deref
+	("!app", ("(!app|prim)", "(!deref|prim)"), NodeApply),
+	("!app", ("!deref",), lambda x: x),
 	("(!app|prim)", ("!app",), lambda x: x),
 	("(!app|prim)", ("prim",), lambda x: x),
+	
+	# !deref: (!deref|prim) . ID | !prim
+	("!deref", ("(!deref|prim)", ".", "ID"), lambda x, DOT, ID: NodeDeref(x, ID)),
+	("!deref", ("!prim",), lambda x: x),
+	("(!deref|prim)", ("!deref",), lambda x: x),
+	("(!deref|prim)", ("prim",), lambda x: x),
 	
 	# prim: INT | ID | ( expr ) | tup
 	("prim", ("INT",), NodeInt),

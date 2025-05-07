@@ -140,7 +140,7 @@ class Syntax[T]:
 				item = working_set.pop()
 				for terminal in item.lookaheads:
 					if (sid, terminal) in shift_table:
-						print("Potential shift-reduce conflict")
+						print(f"Potential shift-reduce conflict: {terminal}")
 						continue
 					
 					if (sid, terminal) in reduce_table:

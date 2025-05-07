@@ -13,13 +13,17 @@ class EvaluationContext:
 	def Lookup(self, symbol: str) -> any:
 		return self._symbol_table[symbol] or self._parent_lookup(symbol)
 	
-	def Push(self, symbol: str, value: T, destructor: Callable[[T], None] = lambda _: None):
+	def Push(self, symbol: str, value: T, destructor: Callable[[T], None]):
 		self._stack.append(symbol)
 		self._symbol_table[symbol] = (value, destructor)
 	
-	def Pop(self, symbol: str):
+	def Pop(self, symbol: str) -> tuple[T, Callable[[T], None]]:
 		self._stack.remove(symbol)
-		return self._symbol_table.pop(symbol)[0]
+		return self._symbol_table.pop(symbol)
+	
+	def Update(self, symbol: str, value: T, destructor: Callable[[T], None]):
+		self.Release(symbol)
+		self.Push(symbol, value, destructor)
 	
 	def Release(self, symbol: str):
 		self._stack.remove(symbol)
