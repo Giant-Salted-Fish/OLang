@@ -55,12 +55,12 @@ SYNTAX_RULES = [
 	
 	# stmt: (!expr|expr) ;
 	#     | LET expr = (!expr|expr) ;
-	#     | DEF prefix* ID prim { stmt* } ;?
+	#     | DEF ID prim { stmt* } ;?
 	#     | expr = (!expr|expr) ;
 	#     | RETURN (!expr|expr) ;
 	("stmt", ("(!expr|expr)", ";"), lambda expr, SEMI: expr),
 	("stmt", ("LET", "expr", "=", "(!expr|expr)", ";"), lambda LET, var, EQ, expr, SEMI: NodeDecl(var, expr)),
-	("stmt", ("DEF", "prefix*", "ID", "prim", "{", "stmt*", "}", ";?"), lambda DEF, prefix, ID, param, LPR, cmpd, RPR, SEMI: NodeDecl(NodeLabel(ID).Annotate(*prefix), NodeCallable(param, cmpd))),
+	("stmt", ("DEF", "ID", "prim", "{", "stmt*", "}", ";?"), lambda DEF, ID, param, LPR, cmpd, RPR, SEMI: NodeDecl(NodeLabel(ID), NodeCallable(param, cmpd))),
 	("stmt", ("expr", "=", "(!expr|expr)", ";"), lambda var, EQ, expr, SEMI: NodeAssign(var, expr)),
 	("stmt", ("RETURN", "(!expr|expr)", ";"), lambda RET, expr, SEMI: expr),
 	("(!expr|expr)", ("!expr",), lambda x: x),
@@ -68,26 +68,17 @@ SYNTAX_RULES = [
 	(";?", (";",), lambda SEMI: SEMI),
 	(";?", (), lambda: None),
 	
-	# expr: prefix* prim suffix*
-	("expr", ("prefix*", "prim", "suffix*"), lambda prefix, x, suffix: x.Annotate(*prefix, *suffix)),
-	("prefix*", ("prefix+",), lambda prefix: prefix),
-	("prefix*", (), lambda: ()),
-	("prefix+", ("prefix+", "prefix"), lambda lst, attr: (*lst, attr)),
-	("prefix+", ("prefix",), lambda attr: (attr,)),
+	# expr: prim suffix*
+	("expr", ("prim", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
 	("suffix*", ("suffix+",), lambda suffix: suffix),
 	("suffix*", (), lambda: ()),
 	("suffix+", ("suffix+", "suffix",), lambda lst, attr: (*lst, attr)),
 	("suffix+", ("suffix",), lambda attr: (attr,)),
 	
-	# !expr: prefix* (!lmbd|!or) suffix*
-	("!expr", ("prefix*", "(!lmbd|!or)", "suffix*"), lambda prefix, x, suffix: x.Annotate(*prefix, *suffix)),
+	# !expr: (!lmbd|!or) suffix*
+	("!expr", ("(!lmbd|!or)", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
 	("(!lmbd|!or)", ("!lmbd",), lambda x: x),
 	("(!lmbd|!or)", ("!or",), lambda x: x),
-	
-	# prefix: @ (!prim|prim)
-	("prefix", ("@", "(!prim|prim)",), lambda AT, attr: attr),
-	("(!prim|prim)", ("!prim",), lambda x: x),
-	("(!prim|prim)", ("prim",), lambda x: x),
 	
 	# suffix: : (!lmbd|!or|prim)
 	("suffix", (":", "(!lmbd|!or|prim)",), lambda COLON, attr: attr),
@@ -146,9 +137,9 @@ SYNTAX_RULES = [
 	("(*|/|%)", ("/",), lambda div: div),
 	("(*|/|%)", ("%",), lambda mod: mod),
 	
-	# !unary: (+|-|!|~) (!unary|prim) | !app
+	# !unary: (+|-|!|~) (!unary|prim) | !deref
 	("!unary", ("(+|-|!|~)", "(!unary|prim)"), lambda PRE, unary: NodeUnaryOp(PRE, unary)),
-	("!unary", ("!app",), lambda x: x),
+	("!unary", ("!deref",), lambda x: x),
 	("(!unary|prim)", ("!unary",), lambda x: x),
 	("(!unary|prim)", ("prim",), lambda x: x),
 	("(+|-|!|~)", ("+",), lambda plus: plus),
@@ -156,17 +147,17 @@ SYNTAX_RULES = [
 	("(+|-|!|~)", ("!",), lambda not_: not_),
 	("(+|-|!|~)", ("~",), lambda bit_not: bit_not),
 	
-	# !app: (!app|prim) (!deref|prim) | !deref
-	("!app", ("(!app|prim)", "(!deref|prim)"), NodeApply),
-	("!app", ("!deref",), lambda x: x),
-	("(!app|prim)", ("!app",), lambda x: x),
-	("(!app|prim)", ("prim",), lambda x: x),
-	
-	# !deref: (!deref|prim) . ID | !prim
+	# !deref: (!deref|prim) . ID | !app
 	("!deref", ("(!deref|prim)", ".", "ID"), lambda x, DOT, ID: NodeDeref(x, ID)),
-	("!deref", ("!prim",), lambda x: x),
+	("!deref", ("!app",), lambda x: x),
 	("(!deref|prim)", ("!deref",), lambda x: x),
 	("(!deref|prim)", ("prim",), lambda x: x),
+	
+	# !app: (!deref|prim) (!prim|prim) | !prim
+	("!app", ("(!deref|prim)", "(!prim|prim)"), NodeApply),
+	("!app", ("!prim",), lambda x: x),
+	("(!prim|prim)", ("!prim",), lambda x: x),
+	("(!prim|prim)", ("prim",), lambda x: x),
 	
 	# prim: INT | ID | ( expr ) | tup
 	("prim", ("INT",), NodeInt),

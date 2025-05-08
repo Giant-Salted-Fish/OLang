@@ -68,7 +68,7 @@ class NodeLabel(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self.GenStr(self.token.GetValue())
+		return self.GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
 		return ctx.Lookup(self.token.GetValue())[0]
@@ -85,7 +85,7 @@ class NodeCompound(Node):
 		self.nodes = nodes
 	
 	def __repr__(self):
-		return self.GenStr(repr(self.nodes))
+		return self.GenStr(repr(self.nodes)[1:-2])
 	
 	def Append(self, node: Node) -> Self:
 		self.nodes = (*self.nodes, node)
@@ -272,6 +272,8 @@ class NodeBinaryOp(Node):
 	
 	def GenText(self):
 		lines = self.JoinText(f" {self.op.GetValue()} ", self.left.GenText(), self.right.GenText())
+		lines = [f"({lines[0]}", *lines[1:]]
+		lines[-1] += ")"
 		return self.AppendAnnotText(lines)
 
 
@@ -308,7 +310,7 @@ class NodeDeref(Node):
 		self.attr = attr
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.obj}, \"{self.attr.GetValue()}\"")
+		return self.GenStr(f"{self.obj}, {repr(self.attr.GetValue())}")
 	
 	def Eval(self, ctx):
 		return getattr(self.obj.Eval(ctx), self.attr.GetValue())

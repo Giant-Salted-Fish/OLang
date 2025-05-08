@@ -1,9 +1,7 @@
 
 def test(a: I32, b) {
     // This is a test function
-    let func = (a: I32, b: I32) -> {
-        return a + b;
-    };
+    let func = (a: I32, b: I32) -> a + b;
     let c = a + 9 * 5;
     let d = 4 * (b - 2);
     return func(c, d);
