@@ -191,7 +191,7 @@ class NodeTuple(Node):
 		self.nodes = nodes
 	
 	def __repr__(self):
-		return self.GenStr(repr(self.nodes))
+		return self.GenStr(repr(self.nodes)[1:-2])
 	
 	def Merge(self, other: "NodeTuple") -> Self:
 		self.nodes = self.nodes + other.nodes
@@ -314,3 +314,17 @@ class NodeDeref(Node):
 	
 	def Eval(self, ctx):
 		return getattr(self.obj.Eval(ctx), self.attr.GetValue())
+
+
+def chain_deref(node: Node, attr: tuple[Token, ...]) -> Node:
+	for token in attr:
+		node = NodeDeref(node, token)
+	return node
+
+
+def chain_call_then_deref(*nodes: tuple[Node, Token, ...]) -> Node:
+	fun = chain_deref(nodes[0][0], nodes[0][1:])
+	for node in nodes[1:]:
+		fun = NodeApply(fun, node[0])
+		fun = chain_deref(fun, node[1:])
+	return fun

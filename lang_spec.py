@@ -68,84 +68,104 @@ SYNTAX_RULES = [
 	(";?", (";",), lambda SEMI: SEMI),
 	(";?", (), lambda: None),
 	
-	# expr: prim suffix*
-	("expr", ("prim", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
+	# expr: prefixed suffix*
+	("expr", ("prefixed", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
 	("suffix*", ("suffix+",), lambda suffix: suffix),
 	("suffix*", (), lambda: ()),
 	("suffix+", ("suffix+", "suffix",), lambda lst, attr: (*lst, attr)),
 	("suffix+", ("suffix",), lambda attr: (attr,)),
+	
+	# prefixed: @ ((!prim|prim) (. ID)*)+ prefixed | prim
+	("prefixed", ("@", "((!prim|prim) (. ID)*)+", "prefixed"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
+	("prefixed", ("prim",), lambda x: x),
+	("((!prim|prim) (. ID)*)+", ("((!prim|prim) (. ID)*)+", "((!prim|prim) (. ID)*)"), lambda lst, x: (*lst, x)),
+	("((!prim|prim) (. ID)*)+", ("((!prim|prim) (. ID)*)",), lambda x: (x,)),
+	("((!prim|prim) (. ID)*)", ("(!prim|prim)", "(. ID)*"), lambda x, lst: (x, *lst)),
+	("(. ID)*", ("(. ID)+",), lambda lst: lst),
+	("(. ID)*", (), lambda: ()),
+	("(. ID)+", ("(. ID)+", "(. ID)"), lambda lst, x: (*lst, x)),
+	("(. ID)+", ("(. ID)",), lambda x: (x,)),
+	("(. ID)", (".", "ID"), lambda DOT, ID: ID),
 	
 	# !expr: (!lmbd|!or) suffix*
 	("!expr", ("(!lmbd|!or)", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
 	("(!lmbd|!or)", ("!lmbd",), lambda x: x),
 	("(!lmbd|!or)", ("!or",), lambda x: x),
 	
-	# suffix: : (!lmbd|!or|prim)
-	("suffix", (":", "(!lmbd|!or|prim)",), lambda COLON, attr: attr),
-	("(!lmbd|!or|prim)", ("!lmbd",), lambda x: x),
-	("(!lmbd|!or|prim)", ("!or",), lambda x: x),
-	("(!lmbd|!or|prim)", ("prim",), lambda x: x),
+	# suffix: : (!lmbd|!or|prefixed)
+	("suffix", (":", "(!lmbd|!or|prefixed)",), lambda COLON, attr: attr),
+	("(!lmbd|!or|prefixed)", ("!lmbd",), lambda x: x),
+	("(!lmbd|!or|prefixed)", ("!or",), lambda x: x),
+	("(!lmbd|!or|prefixed)", ("prefixed",), lambda x: x),
 	
-	# !lmbd: prim -> !lmbd | prim -> (!or|prim)
-	("!lmbd", ("prim", "->", "!lmbd"), lambda param, ARROW, body: NodeCallable(param, body)),
-	("!lmbd", ("prim", "->", "(!or|prim)"), lambda param, ARROW, body: NodeCallable(param, body)),
+	# !lmbd: prefixed -> !lmbd | prefixed -> (!or|prefixed)
+	("!lmbd", ("prefixed", "->", "!lmbd"), lambda param, ARROW, body: NodeCallable(param, body)),
+	("!lmbd", ("prefixed", "->", "(!or|prefixed)"), lambda param, ARROW, body: NodeCallable(param, body)),
 	
-	# !or: (!or|prim) || (!and|prim) | !and
-	("!or", ("(!or|prim)", "||", "(!and|prim)"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
+	# !or: (!or|prefixed) || (!and|prefixed) | !and
+	("!or", ("(!or|prefixed)", "||", "(!and|prefixed)"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
 	("!or", ("!and",), lambda x: x),
-	("(!or|prim)", ("!or",), lambda x: x),
-	("(!or|prim)", ("prim",), lambda x: x),
+	("(!or|prefixed)", ("!or",), lambda x: x),
+	("(!or|prefixed)", ("prefixed",), lambda x: x),
 	
-	# !and: (!and|prim) && (!eq|prim) | !eq
-	("!and", ("(!and|prim)", "&&", "(!eq|prim)"), lambda left, AND, right: NodeBinaryOp(AND, left, right)),
+	# !and: (!and|prefixed) && (!eq|prefixed) | !eq
+	("!and", ("(!and|prefixed)", "&&", "(!eq|prefixed)"), lambda left, AND, right: NodeBinaryOp(AND, left, right)),
 	("!and", ("!eq",), lambda x: x),
-	("(!and|prim)", ("!and",), lambda x: x),
-	("(!and|prim)", ("prim",), lambda x: x),
+	("(!and|prefixed)", ("!and",), lambda x: x),
+	("(!and|prefixed)", ("prefixed",), lambda x: x),
 	
-	# !eq: (!eq|prim) (==|!=) (!rel|prim) | !rel
-	("!eq", ("(!eq|prim)", "(==|!=)", "(!rel|prim)"), lambda left, EQ, right: NodeBinaryOp(EQ, left, right)),
+	# !eq: (!eq|prefixed) (==|!=) (!rel|prefixed) | !rel
+	("!eq", ("(!eq|prefixed)", "(==|!=)", "(!rel|prefixed)"), lambda left, EQ, right: NodeBinaryOp(EQ, left, right)),
 	("!eq", ("!rel",), lambda x: x),
-	("(!eq|prim)", ("!eq",), lambda x: x),
-	("(!eq|prim)", ("prim",), lambda x: x),
+	("(!eq|prefixed)", ("!eq",), lambda x: x),
+	("(!eq|prefixed)", ("prefixed",), lambda x: x),
 	("(==|!=)", ("==",), lambda eq: eq),
 	("(==|!=)", ("!=",), lambda neq: neq),
 	
-	# !rel: (!rel|prim) (<=|>=|<|>) (!add|prim) | !add
-	("!rel", ("(!rel|prim)", "(<=|>=|<|>)", "(!add|prim)"), lambda left, REL, right: NodeBinaryOp(REL, left, right)),
+	# !rel: (!rel|prefixed) (<=|>=|<|>) (!add|prefixed) | !add
+	("!rel", ("(!rel|prefixed)", "(<=|>=|<|>)", "(!add|prefixed)"), lambda left, REL, right: NodeBinaryOp(REL, left, right)),
 	("!rel", ("!add",), lambda x: x),
-	("(!rel|prim)", ("!rel",), lambda x: x),
-	("(!rel|prim)", ("prim",), lambda x: x),
+	("(!rel|prefixed)", ("!rel",), lambda x: x),
+	("(!rel|prefixed)", ("prefixed",), lambda x: x),
 	("(<=|>=|<|>)", (">=",), lambda gte: gte),
 	("(<=|>=|<|>)", ("<=",), lambda lse: lse),
 	("(<=|>=|<|>)", (">",), lambda gt: gt),
 	("(<=|>=|<|>)", ("<",), lambda ls: ls),
 	
-	# !add: (!add|prim) (+|-) (!mul|prim) | !mul
-	("!add", ("(!add|prim)", "(+|-)", "(!mul|prim)"), lambda left, ADD, right: NodeBinaryOp(ADD, left, right)),
+	# !add: (!add|prefixed) (+|-) (!mul|prefixed) | !mul
+	("!add", ("(!add|prefixed)", "(+|-)", "(!mul|prefixed)"), lambda left, ADD, right: NodeBinaryOp(ADD, left, right)),
 	("!add", ("!mul",), lambda x: x),
-	("(!add|prim)", ("!add",), lambda x: x),
-	("(!add|prim)", ("prim",), lambda x: x),
+	("(!add|prefixed)", ("!add",), lambda x: x),
+	("(!add|prefixed)", ("prefixed",), lambda x: x),
 	("(+|-)", ("+",), lambda plus: plus),
 	("(+|-)", ("-",), lambda minus: minus),
 	
-	# !mul: (!mul|prim) (*|/|%) (!unary|prim) | !unary
-	("!mul", ("(!mul|prim)", "(*|/|%)", "(!unary|prim)"), lambda left, MUL, right: NodeBinaryOp(MUL, left, right)),
+	# !mul: (!mul|prefixed) (*|/|%) (!unary|prefixed) | !unary
+	("!mul", ("(!mul|prefixed)", "(*|/|%)", "(!unary|prefixed)"), lambda left, MUL, right: NodeBinaryOp(MUL, left, right)),
 	("!mul", ("!unary",), lambda x: x),
-	("(!mul|prim)", ("!mul",), lambda x: x),
-	("(!mul|prim)", ("prim",), lambda x: x),
+	("(!mul|prefixed)", ("!mul",), lambda x: x),
+	("(!mul|prefixed)", ("prefixed",), lambda x: x),
 	("(*|/|%)", ("*",), lambda mul: mul),
 	("(*|/|%)", ("/",), lambda div: div),
 	("(*|/|%)", ("%",), lambda mod: mod),
 	
-	# !unary: (+|-|!|~) (!unary|prim) | !deref
-	("!unary", ("(+|-|!|~)", "(!unary|prim)"), lambda PRE, unary: NodeUnaryOp(PRE, unary)),
-	("!unary", ("!deref",), lambda x: x),
-	("(!unary|prim)", ("!unary",), lambda x: x),
-	("(!unary|prim)", ("prim",), lambda x: x),
+	# !unary: (+|-|!|~) (!unary|prefixed) | (!prefixed|!deref)
+	("!unary", ("(+|-|!|~)", "(!unary|prefixed)"), lambda PRE, unary: NodeUnaryOp(PRE, unary)),
+	("!unary", ("(!prefixed|!deref)",), lambda x: x),
+	("(!unary|prefixed)", ("!unary",), lambda x: x),
+	("(!unary|prefixed)", ("prefixed",), lambda x: x),
+	("(!prefixed|!deref)", ("!prefixed",), lambda x: x),
+	("(!prefixed|!deref)", ("!deref",), lambda x: x),
 	("(+|-|!|~)", ("+",), lambda plus: plus),
 	("(+|-|!|~)", ("-",), lambda minus: minus),
 	("(+|-|!|~)", ("!",), lambda not_: not_),
 	("(+|-|!|~)", ("~",), lambda bit_not: bit_not),
+	
+	# !prefixed: @ ((!prim|prim) (. ID)*)+ !prefixed | ((!prim|prim) (. ID)*)+ !prim | ((!prim|prim) (. ID)*)+ ((!prim|prim) (. ID)+)
+	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "!prefixed"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
+	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "!prim"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
+	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "((!prim|prim) (. ID)+)"), lambda AT, lst, xs: chain_deref(xs[0], *xs[1:]).Annotate(chain_call_then_deref(*lst))),
+	("((!prim|prim) (. ID)+)", ("(!prim|prim)", "(. ID)+"), lambda x, lst: (x, *lst)),
 	
 	# !deref: (!deref|prim) . ID | !app
 	("!deref", ("(!deref|prim)", ".", "ID"), lambda x, DOT, ID: NodeDeref(x, ID)),
