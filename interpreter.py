@@ -5,13 +5,13 @@ T = TypeVar("T")
 
 
 class EvaluationContext:
-	def __init__(self, parent_lookup=lambda _: None):
-		self._parent_lookup = parent_lookup
+	def __init__(self, parent: "EvaluationContext" = None):
+		self._parent = parent
 		self._symbol_table = {}
 		self._stack = []
 	
 	def Lookup(self, symbol: str) -> any:
-		return self._symbol_table[symbol] or self._parent_lookup(symbol)
+		return self._symbol_table.get(symbol) or self._parent.Lookup(symbol)
 	
 	def Push(self, symbol: str, value: T, destructor: Callable[[T], None]):
 		self._stack.append(symbol)
@@ -31,9 +31,11 @@ class EvaluationContext:
 		destructor(value)
 	
 	def PushScope(self):
-		return EvaluationContext(self.Lookup)
+		return EvaluationContext(self)
 	
 	def PopScope(self):
-		while self._stack:
-			symbol = self._stack.pop()
-			self.Release(symbol)
+		for symbol in self._stack:
+			value, destructor = self._symbol_table.pop(symbol)
+			destructor(value)
+		self._stack.clear()
+		return self._parent

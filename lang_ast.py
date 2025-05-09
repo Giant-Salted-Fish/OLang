@@ -157,10 +157,10 @@ class NodeCallable(Node):
 		return self
 	
 	def Invoke(self, arg, ctx):
-		ctx.PushScope()
-		self.param.Unwind(arg, ctx)
-		ret_val = self.body.Eval(ctx)
-		ctx.PopScope()
+		new_ctx = ctx.PushScope()
+		self.param.Unwind(arg, new_ctx.Push, new_ctx)
+		ret_val = self.body.Eval(new_ctx)
+		new_ctx.PopScope()
 		return ret_val
 	
 	def GenText(self):
