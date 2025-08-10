@@ -34,13 +34,14 @@ TOKEN_TYPES = [
 	("%", r"%"),
 	("!", r"!"),
 	("~", r"~"),
+	("#", r"#"),
 	("@", r"@"),
 	(":", r":"),
 	("->", r"->"),
 	(".", r"\."),
 	(",", r","),
 	
-	# TODO: Handle mult-line comment
+	# TODO: Maybe forbid mult-line comment
 	("COMMENT", r"//.*"),
 ]
 
