@@ -1,4 +1,4 @@
-from typing import Self, Sequence, Callable, TypeVar
+from typing import Self, Sequence, Callable, TypeVar, Any
 from scaner import Token
 from interpreter import EvaluationContext
 
@@ -13,13 +13,13 @@ class Node:
 		self.annotations = self.annotations + annotations
 		return self
 	
-	def Eval(self, ctx: EvaluationContext) -> any:
+	def Eval(self, ctx: EvaluationContext) -> Any:
 		raise NotImplementedError
 	
 	def Unwind(self, val: T, put: Callable[[str, T, Callable[[T], None]], None], ctx: EvaluationContext) -> None:
 		raise NotImplementedError
 	
-	def Invoke(self, arg, ctx: EvaluationContext) -> any:
+	def Invoke(self, arg, ctx: EvaluationContext) -> Any:
 		raise NotImplementedError
 	
 	def GenStr(self, fields: str) -> str:

@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, Any
 
 
 T = TypeVar("T")
@@ -10,7 +10,7 @@ class EvaluationContext:
 		self._symbol_table = {}
 		self._stack = []
 	
-	def Lookup(self, symbol: str) -> any:
+	def Lookup(self, symbol: str) -> Any:
 		return self._symbol_table.get(symbol) or self._parent.Lookup(symbol)
 	
 	def Push(self, symbol: str, value: T, destructor: Callable[[T], None]):

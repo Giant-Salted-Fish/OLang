@@ -1,5 +1,5 @@
 from scaner import Token
-from typing import Iterable, Iterator, Collection, TypeVar, Callable, NamedTuple, Sequence
+from typing import Iterable, Iterator, Collection, TypeVar, Callable, NamedTuple, Sequence, Any
 
 
 T = TypeVar("T")
@@ -26,7 +26,7 @@ class Syntax[T]:
 		start_symbol: str,
 		symbol_2_production: dict[str, Collection[Production[T]]],
 		is_terminal: Callable[[str | T], bool],
-		first_sets: dict[str, Collection[T]],
+		first_sets: dict[str, set[T]],
 		epsilons: Collection[str]
 	):
 		self._start_symbol = start_symbol
@@ -42,12 +42,21 @@ class Syntax[T]:
 		return self._symbol_2_production[lhs]
 	
 	def AsTerminal(self, symbol: str | T) -> T | None:
-		return symbol if self._is_terminal(symbol) else None
+		if self._is_terminal(symbol):
+			# If T can be str, we need a way to distinguish between terminals and non-terminals.
+			# We rely on is_terminal to do this, regardless of type.
+			return symbol  # type: ignore
+		else:
+			return None
 	
 	def AsNonTerminal(self, symbol: str | T) -> str | None:
-		return symbol if not self._is_terminal(symbol) else None
+		if self._is_terminal(symbol):
+			return None
+		else:
+			assert isinstance(symbol, str)
+			return symbol
 	
-	def GetFirstSet(self, symbol: str) -> Collection[T]:
+	def GetFirstSet(self, symbol: str) -> set[T]:
 		return self._first_sets[symbol]
 	
 	def CanProduceEpsilon(self, symbol: str) -> bool:
@@ -57,7 +66,7 @@ class Syntax[T]:
 		return self.ExpandState([(prod, 0, (None,)) for prod in self.GetProductionsOf(self._start_symbol)])
 	
 	def ExpandState(self, items: Iterable[tuple[Production[T], int, Iterable[T | None]]]) -> frozenset[Item[T]]:
-		new_state = {}
+		new_state: dict[tuple[Production[T], int], set[T | None]] = {}
 		def expand_item(production: Production[T], dot_pos: int, lookahead: set[T | None]):
 			if (production, dot_pos) in new_state:
 				prev_lookahead = new_state[production, dot_pos]
@@ -76,7 +85,7 @@ class Syntax[T]:
 			if next_symbol is None:
 				return
 			
-			new_lookahead = set()
+			new_lookahead: set[T|None] = set()
 			for i in range(dot_pos + 1, len(production.rhs)):
 				s = production.rhs[i]
 				if following := self.AsTerminal(s):
@@ -92,7 +101,7 @@ class Syntax[T]:
 				new_lookahead |= lookahead
 			
 			next_prods = self.GetProductionsOf(next_symbol)
-			for p, lkahd in zip(next_prods, [new_lookahead,] + [new_lookahead.copy() for _ in range(len(next_prods) - 1)]):
+			for p, lkahd in zip(next_prods, (new_lookahead,) + tuple(new_lookahead.copy() for _ in range(len(next_prods) - 1))):
 				expand_item(p, 0, lkahd)
 		
 		for production, dot_pos, lookaheads in items:
@@ -105,10 +114,10 @@ class Syntax[T]:
 		)
 	
 	def BuildLR1Parser(self):
-		state_table = {}
-		shift_table = {}
-		reduce_table = {}
-		goto_table = {}
+		state_table: dict[frozenset[Item[T]], int] = {}
+		shift_table: dict[tuple[int, T | None], int] = {}
+		reduce_table: dict[tuple[int, T | None], Production[T]] = {}
+		goto_table: dict[tuple[int, str], int] = {}
 		def explore(state: frozenset[Item[T]]) -> int:
 			if sid := state_table.get(state):
 				return sid
@@ -131,9 +140,10 @@ class Syntax[T]:
 				next_state = self.ExpandState(new_items)
 				next_sid = explore(next_state)
 				if following := self.AsTerminal(next_symbol):
-					shift_table[(sid, following)] = next_sid
+					shift_table[sid, following] = next_sid
 				else:
-					goto_table[(sid, next_symbol)] = next_sid
+					assert isinstance(next_symbol, str)
+					goto_table[sid, next_symbol] = next_sid
 			
 			working_set = set(it for it in state if it.dot_pos == len(it.production.rhs))
 			while working_set:
@@ -144,9 +154,9 @@ class Syntax[T]:
 						continue
 					
 					if (sid, terminal) in reduce_table:
-						raise Exception("Detect reduce-reduce conflict")
+						raise Exception(f"Detect reduce-reduce conflict: {terminal}")
 					
-					reduce_table[(sid, terminal)] = item.production
+					reduce_table[sid, terminal] = item.production
 			return sid
 		
 		explore(self.BuildInitialState())
@@ -155,14 +165,15 @@ class Syntax[T]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> any:
+	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> Any:
 		state_stack = [self.BuildInitialState()]
-		action_stack = []
+		action_stack: list[Any] = []
 		accept = False
 		for token in token_stream:
 			if accept:
 				raise Exception("Unexpected end of input")
 			
+			# TODO: This is a hack
 			if token.GetType() == "COMMENT":
 				continue
 			
@@ -264,8 +275,8 @@ class Parser[T]:
 		self,
 		syntax: Syntax,
 		state_table: Sequence[frozenset[Item[T]]],
-		shift_table: dict[tuple[int, int], int],
-		reduce_table: dict[tuple[int, int], Production[T]],
+		shift_table: dict[tuple[int, T | None], int],
+		reduce_table: dict[tuple[int, T | None], Production[T]],
 		goto_table: dict[tuple[int, str], int]
 	):
 		self._syntax = syntax
@@ -277,14 +288,15 @@ class Parser[T]:
 	def __str__(self):
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
-	def Parse(self, token_stream: Iterator[Token[T]]) -> any:
+	def Parse(self, token_stream: Iterator[Token[T]]) -> Any:
 		state_stack = [0]
-		action_stack = []
+		action_stack: list[Any] = []
 		accept = False
 		for token in token_stream:
 			if accept:
 				raise Exception("Too much tokens")
 			
+			# TODO: This is a hack
 			if token.GetType() == "COMMENT":
 				continue
 			
@@ -308,7 +320,7 @@ class Parser[T]:
 						break
 					
 					key = (state_stack[-1], prod.lhs)
-					next_state = self._goto_table.get(key)
+					next_state = self._goto_table[key]
 					state_stack.append(next_state)
 				else:
 					raise Exception("No solution")
