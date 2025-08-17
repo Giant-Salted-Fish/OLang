@@ -7,10 +7,15 @@ T = TypeVar("T")
 
 
 class Node:
-	annotations = ()
+	prefix = ()
+	suffix = ()
 	
-	def Annotate(self, *annotations: "Node") -> Self:
-		self.annotations = self.annotations + annotations
+	def AppendPrefix(self, *attr: "Node") -> Self:
+		self.prefix = self.prefix + attr
+		return self
+	
+	def AppendSuffix(self, *attr: "Node") -> Self:
+		self.suffix = self.suffix + attr
 		return self
 	
 	def Eval(self, ctx: EvaluationContext) -> Any:
@@ -22,28 +27,52 @@ class Node:
 	def Invoke(self, arg, ctx: EvaluationContext) -> Any:
 		raise NotImplementedError
 	
-	def GenStr(self, fields: str) -> str:
-		attrs = f", annotations={''.join(f"{attr};" for attr in self.annotations)}" if self.annotations else ""
-		return f"{self.__class__.__name__}({fields}{attrs})"
-	
-	def GenText(self) -> Sequence[str]:
+	def GenCode(self) -> list[str]:
 		raise NotImplementedError
 	
-	def AppendAnnotText(self, lines: Sequence[str]) -> Sequence[str]:
-		elements = [node.GenText() for node in self.annotations]
-		if all(len(lines) == 1 for lines in elements):
-			annot = ["".join(f"@{lines[0]} " for lines in elements)]
+	def _GenStr(self, fields: str) -> str:
+		pre = f", prefix={';'.join(str(attr) for attr in self.prefix)}" if self.prefix else ""
+		suf = f", suffix={';'.join(str(attr) for attr in self.suffix)}" if self.suffix else ""
+		return f"{self.__class__.__name__}({fields}{pre}{suf})"
+	
+	def _AppendAttrText(self, lines: list[str]) -> list[str]:
+		def gen_attr_text(prefix: str, attr: list[Sequence[str]]):
+			assert all(len(lines) > 0 for lines in attr)
+			if attr and all(len(lines) == 1 for lines in attr):
+				return [" ".join(f"{prefix}{lines[0]}" for lines in attr)]
+			else:
+				return [line for lines in attr for line in (f"{prefix}{lines[0]}", *lines[1:])]
+		text = gen_attr_text("@", [node.GenCode() for node in self.prefix])
+		if len(text) == 1:
+			text = self._JoinText(" ", text, lines)
 		else:
-			annot = [f": {line}" for lines in elements for line in lines]
-		return self.JoinText("", annot, lines)
+			text += lines
+		
+		suffix = gen_attr_text(":", [node.GenCode() for node in self.suffix])
+		if len(suffix) == 1:
+			text = self._JoinText(" ", text, suffix)
+		else:
+			text += suffix
+		return text
 	
 	@staticmethod
-	def JoinText(joiner: str, first: Sequence[str], second: Sequence[str]) -> Sequence[str]:
-		return [
-			*first[:-1],
-			f"{first[-1]}{joiner}{second[0]}",
-			*second[1:],
-		]
+	def _JoinText(joiner: str, *text: list[str]) -> list[str]:
+		while text:
+			result, text = text[0], text[1:]
+			if result:
+				break
+		else:
+			result = []
+		
+		while text:
+			lines, text = text[0], text[1:]
+			if lines:
+				result = [
+					*result[:-1],
+					f"{result[-1]}{joiner}{lines[0]}",
+					*lines[1:],
+				]
+		return result
 
 
 class NodeInt(Node):
@@ -51,7 +80,7 @@ class NodeInt(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self.GenStr(self.token.GetValue())
+		return self._GenStr(self.token.GetValue())
 	
 	def Eval(self, ctx):
 		return int(self.token.GetValue())
@@ -59,8 +88,8 @@ class NodeInt(Node):
 	def Unwind(self, val, put, ctx):
 		pass
 	
-	def GenText(self):
-		return self.AppendAnnotText([self.token.GetValue()])
+	def GenCode(self):
+		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeLabel(Node):
@@ -68,7 +97,7 @@ class NodeLabel(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self.GenStr(repr(self.token.GetValue()))
+		return self._GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
 		return ctx.Lookup(self.token.GetValue())[0]
@@ -76,8 +105,8 @@ class NodeLabel(Node):
 	def Unwind(self, val, put, ctx):
 		put(self.token.GetValue(), val, lambda _: None)
 	
-	def GenText(self):
-		return self.AppendAnnotText([self.token.GetValue()])
+	def GenCode(self):
+		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeCompound(Node):
@@ -85,7 +114,7 @@ class NodeCompound(Node):
 		self.nodes = nodes
 	
 	def __repr__(self):
-		return self.GenStr(repr(self.nodes)[1:-2])
+		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Append(self, node: Node) -> Self:
 		self.nodes = (*self.nodes, node)
@@ -97,11 +126,11 @@ class NodeCompound(Node):
 			val = node.Eval(ctx)
 		return val
 	
-	def GenText(self):
+	def GenCode(self):
 		def process(n):
-			lines = n.GenText()
+			lines = n.GenCode()
 			return [*lines[:-1], f"{lines[-1]};"]
-		return self.AppendAnnotText([
+		return self._AppendAttrText([
 			"{",
 			*(f"\t{line}" for node in self.nodes for line in process(node)),
 			"}",
@@ -114,17 +143,17 @@ class NodeDecl(Node):
 		self.expr = expr
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.var}, {self.expr}")
+		return self._GenStr(f"{self.var}, {self.expr}")
 	
 	def Eval(self, ctx):
 		val = self.expr.Eval(ctx)
 		self.var.Unwind(val, ctx.Push, ctx)
 		return ()
 	
-	def GenText(self):
-		lines = self.JoinText(" = ", self.var.GenText(), self.expr.GenText())
+	def GenCode(self):
+		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
 		lines = [f"let {lines[0]}", *lines[1:]]
-		return self.AppendAnnotText(lines)
+		return self._AppendAttrText(lines)
 
 
 class NodeAssign(Node):
@@ -133,16 +162,16 @@ class NodeAssign(Node):
 		self.expr = expr
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.var}, {self.expr}")
+		return self._GenStr(f"{self.var}, {self.expr}")
 	
 	def Eval(self, ctx):
 		val = self.expr.Eval(ctx)
 		self.var.Unwind(val, ctx.Update, ctx)
 		return val
 	
-	def GenText(self):
-		lines = self.JoinText(" = ", self.var.GenText(), self.expr.GenText())
-		return self.AppendAnnotText(lines)
+	def GenCode(self):
+		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
+		return self._AppendAttrText(lines)
 
 
 class NodeCallable(Node):
@@ -151,7 +180,7 @@ class NodeCallable(Node):
 		self.body = body
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.param}, {self.body}")
+		return self._GenStr(f"{self.param}, {self.body}")
 	
 	def Eval(self, ctx):
 		return self
@@ -163,27 +192,57 @@ class NodeCallable(Node):
 		new_ctx.PopScope()
 		return ret_val
 	
-	def GenText(self):
-		lines = self.JoinText(" -> ", self.param.GenText(), self.body.GenText())
-		return self.AppendAnnotText(lines)
+	def GenCode(self):
+		lines = self._JoinText(" -> ", self.param.GenCode(), self.body.GenCode())
+		return self._AppendAttrText(lines)
 
 
 class NodeApply(Node):
-	def __init__(self, callable: Node, arg: Node):
-		self.callable = callable
+	def __init__(self, func: Node, arg: Node):
+		self.func = func
 		self.arg = arg
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.callable}, {self.arg}")
+		return self._GenStr(f"{self.func}, {self.arg}")
 	
 	def Eval(self, ctx):
-		func = self.callable.Eval(ctx)
+		func = self.func.Eval(ctx)
 		arg = self.arg.Eval(ctx)
 		return func.Invoke(arg, ctx)
 	
-	def GenText(self):
-		lines = self.JoinText(" ", self.callable.GenText(), self.arg.GenText())
-		return self.AppendAnnotText(lines)
+	def GenCode(self):
+		lines = self._JoinText(" ", self.func.GenCode(), self.arg.GenCode())
+		return self._AppendAttrText(lines)
+
+
+class NodeUnion(Node):
+	def __init__(self, *nodes: Node):
+		self.nodes = nodes
+	
+	def __repr__(self):
+		return self._GenStr(repr(self.nodes)[1:-2])
+	
+	def Append(self, *nodes: Node) -> Self:
+		self.nodes = self.nodes + nodes
+		return self
+	
+	def Eval(self, ctx):
+		raise NotImplementedError("Try to evaluate union expression")
+	
+	def GenCode(self):
+		elements = [node.GenCode() for node in self.nodes]
+		if all(len(lines) == 1 for lines in elements):
+			inner = "| ".join(lines[0] for lines in elements)
+			if len(elements) == 1:
+				inner += "|"
+			lines = [f"({inner})"]
+		else:
+			lines = [
+				"(",
+				*(f"\t{line}," for lines in elements for line in (*lines[:-1], f"{lines[-1]}|")),
+				")",
+			]
+		return self._AppendAttrText(lines)
 
 
 class NodeTuple(Node):
@@ -191,14 +250,10 @@ class NodeTuple(Node):
 		self.nodes = nodes
 	
 	def __repr__(self):
-		return self.GenStr(repr(self.nodes)[1:-2])
+		return self._GenStr(repr(self.nodes)[1:-2])
 	
-	def Merge(self, other: "NodeTuple") -> Self:
-		self.nodes = self.nodes + other.nodes
-		return self
-	
-	def Append(self, node: Node) -> Self:
-		self.nodes = (*self.nodes, node)
+	def Append(self, *nodes: Node) -> Self:
+		self.nodes = self.nodes + nodes
 		return self
 	
 	def Eval(self, ctx):
@@ -212,8 +267,8 @@ class NodeTuple(Node):
 		for i, node in enumerate(self.nodes):
 			node.Unwind(val[i], put, ctx)
 	
-	def GenText(self):
-		elements = [node.GenText() for node in self.nodes]
+	def GenCode(self):
+		elements = [node.GenCode() for node in self.nodes]
 		if all(len(lines) == 1 for lines in elements):
 			inner = ", ".join(lines[0] for lines in elements)
 			if len(elements) == 1:
@@ -222,10 +277,10 @@ class NodeTuple(Node):
 		else:
 			lines = [
 				"(",
-				*(f"\t{line}," for lines in elements for line in [*lines[:-1], f"{lines[-1]},"]),
+				*(f"\t{line}," for lines in elements for line in (*lines[:-1], f"{lines[-1]},")),
 				")",
 			]
-		return self.AppendAnnotText(lines)
+		return self._AppendAttrText(lines)
 
 
 class NodeBinaryOp(Node):
@@ -235,7 +290,7 @@ class NodeBinaryOp(Node):
 		self.right = right
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.op.GetValue()}, {self.left}, {self.right}")
+		return self._GenStr(f"{self.op.GetValue()}, {self.left}, {self.right}")
 	
 	def Eval(self, ctx):
 		x = self.left.Eval(ctx)
@@ -270,11 +325,11 @@ class NodeBinaryOp(Node):
 			case _:
 				raise ValueError(f"Unknown operator: {self.op}")
 	
-	def GenText(self):
-		lines = self.JoinText(f" {self.op.GetValue()} ", self.left.GenText(), self.right.GenText())
+	def GenCode(self):
+		lines = self._JoinText(f" {self.op.GetValue()} ", self.left.GenCode(), self.right.GenCode())
 		lines = [f"({lines[0]}", *lines[1:]]
 		lines[-1] += ")"
-		return self.AppendAnnotText(lines)
+		return self._AppendAttrText(lines)
 
 
 class NodeUnaryOp(Node):
@@ -283,7 +338,7 @@ class NodeUnaryOp(Node):
 		self.node = node
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.op}, {self.node}")
+		return self._GenStr(f"{self.op}, {self.node}")
 	
 	def Eval(self, ctx):
 		val = self.node.Eval(ctx)
@@ -299,32 +354,44 @@ class NodeUnaryOp(Node):
 			case _:
 				raise ValueError(f"Unknown operator: {self.op}")
 	
-	def GenText(self):
-		val = self.node.GenText()
+	def GenCode(self):
+		val = self.node.GenCode()
 		return [f"{self.op.GetValue()}{val[0]}", *val[1:]]
 
 
-class NodeDeref(Node):
-	def __init__(self, obj: Node, attr: Token):
+class NodeAccess(Node):
+	def __init__(self, obj: Node, field: Token):
 		self.obj = obj
-		self.attr = attr
+		self.attr = field
 	
 	def __repr__(self):
-		return self.GenStr(f"{self.obj}, {repr(self.attr.GetValue())}")
+		return self._GenStr(f"{self.obj}, {repr(self.attr.GetValue())}")
 	
 	def Eval(self, ctx):
 		return getattr(self.obj.Eval(ctx), self.attr.GetValue())
 
 
-def chain_deref(node: Node, attr: tuple[Token, ...]) -> Node:
-	for token in attr:
-		node = NodeDeref(node, token)
-	return node
-
-
-def chain_call_then_deref(*nodes: tuple[Node, Token, ...]) -> Node:
-	fun = chain_deref(nodes[0][0], nodes[0][1:])
-	for node in nodes[1:]:
-		fun = NodeApply(fun, node[0])
-		fun = chain_deref(fun, node[1:])
-	return fun
+class NodeIndex(Node):
+	def __init__(self, obj: Node, index: Node):
+		self.obj = obj
+		self.index = index
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.obj}, {self.index}")
+	
+	def Eval(self, ctx):
+		return self.obj.Eval(ctx)[self.index.Eval(ctx)]
+	
+	def GenCode(self):
+		val = self.obj.GenCode()
+		index = self.index.GenCode()
+		if len(index) == 1:
+			lines = [*val[:-1], f"{val[-1]}[{index[0]}]"]
+		else:
+			lines = [
+				*val[:-1],
+				f"{val[-1]}[",
+				*(f"\t{line}," for line in index),
+				"]",
+			]
+		return self._AppendAttrText(lines)

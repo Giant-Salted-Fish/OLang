@@ -4,8 +4,8 @@ from lang_ast import *
 
 TOKEN_TYPES = [
 	("RETURN", r"return"),
-	("DEF", r"def"),
 	("LET", r"let"),
+	("FN", r"fn"),
 	
 	("INT", r"[1-9]\d*"),
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
@@ -19,6 +19,8 @@ TOKEN_TYPES = [
 	
 	(";", r";"),
 	("=", r"="),
+	("|", r"\|"),
+	(",", r","),
 	("||", r"\|\|"),
 	("&&", r"&&"),
 	("==", r"=="),
@@ -39,7 +41,6 @@ TOKEN_TYPES = [
 	(":", r":"),
 	("->", r"->"),
 	(".", r"\."),
-	(",", r","),
 	
 	# TODO: Maybe forbid mult-line comment
 	("COMMENT", r"//.*"),
@@ -49,164 +50,177 @@ TERMINALS = set(t for t, _ in TOKEN_TYPES)
 
 SYNTAX_RULES = [
 	("S", ("stmt*",), lambda x: x),
-	("stmt*", ("stmt+",), lambda cmpd: cmpd),
+	("stmt*", ("stmt*", "stmt"), lambda cmpd, stmt: cmpd.Append(stmt)),
 	("stmt*", (), lambda: NodeCompound()),
-	("stmt+", ("stmt+", "stmt"), lambda cmpd, stmt: cmpd.Append(stmt)),
-	("stmt+", ("stmt",), lambda stmt: NodeCompound(stmt)),
 	
-	# stmt: (!expr|expr) ;
-	#     | LET expr = (!expr|expr) ;
-	#     | DEF ID prim { stmt* } ;?
-	#     | expr = (!expr|expr) ;
-	#     | RETURN (!expr|expr) ;
-	("stmt", ("(!expr|expr)", ";"), lambda expr, SEMI: expr),
-	("stmt", ("LET", "expr", "=", "(!expr|expr)", ";"), lambda LET, var, EQ, expr, SEMI: NodeDecl(var, expr)),
-	("stmt", ("DEF", "ID", "prim", "{", "stmt*", "}", ";?"), lambda DEF, ID, param, LPR, cmpd, RPR, SEMI: NodeDecl(NodeLabel(ID), NodeCallable(param, cmpd))),
-	("stmt", ("expr", "=", "(!expr|expr)", ";"), lambda var, EQ, expr, SEMI: NodeAssign(var, expr)),
-	("stmt", ("RETURN", "(!expr|expr)", ";"), lambda RET, expr, SEMI: expr),
-	("(!expr|expr)", ("!expr",), lambda x: x),
-	("(!expr|expr)", ("expr",), lambda x: x),
+	# stmt: (assign|expr) ;
+	#     | prefix* LET expr = (assign|expr) ;
+	#     | RETURN (assign|expr) ;
+	#     | fn_decl
+	#     | prefix* @ ((+|-|!)* post) post* fn_decl
+	("stmt", ("(assign|expr)", ";"), lambda expr, SEMI: expr),
+	("stmt", ("prefix*", "LET", "expr", "=", "(assign|expr)", ";"), lambda attr, LET, param, EQ, expr, SEMI: NodeDecl(param, expr).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "RETURN", "(assign|expr)", ";"), lambda attr, RET, expr, SEMI: expr.AppendPrefix(*attr)),
+	("stmt", ("fn_decl",), lambda x: x),
+	("stmt", ("prefix*", "@", "((+|-|!)* post)", "post*", "fn_decl"), lambda attr, AT, attr2, attr3, x: x.AppendPrefix(*attr, make_applied(*attr2, *attr3))),
+	
+	# fn_decl: FN ((+|-|!)* post) ((+|-|!)* post) cmpd ;?
+	("fn_decl", ("FN", "((+|-|!)* post)", "((+|-|!)* post)", "cmpd", ";?"), lambda FN, label, param, body, SEMI: NodeDecl(make_applied(*label), NodeCallable(make_applied(*param), body))),
 	(";?", (";",), lambda SEMI: SEMI),
 	(";?", (), lambda: None),
 	
-	# expr: prefixed suffix*
-	("expr", ("prefixed", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
-	("suffix*", ("suffix+",), lambda suffix: suffix),
-	("suffix*", (), lambda: ()),
-	("suffix+", ("suffix+", "suffix",), lambda lst, attr: (*lst, attr)),
-	("suffix+", ("suffix",), lambda attr: (attr,)),
+	# assign: expr = (assign|expr)
+	("assign", ("expr", "=", "(assign|expr)"), lambda var, EQ, expr: NodeAssign(var, expr)),
+	("(assign|expr)", ("expr",), lambda x: x),
+	("(assign|expr)", ("assign",), lambda x: x),
 	
-	# prefixed: @ ((!prim|prim) (. ID)*)+ prefixed | prim
-	("prefixed", ("@", "((!prim|prim) (. ID)*)+", "prefixed"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
-	("prefixed", ("prim",), lambda x: x),
-	("((!prim|prim) (. ID)*)+", ("((!prim|prim) (. ID)*)+", "((!prim|prim) (. ID)*)"), lambda lst, x: (*lst, x)),
-	("((!prim|prim) (. ID)*)+", ("((!prim|prim) (. ID)*)",), lambda x: (x,)),
-	("((!prim|prim) (. ID)*)", ("(!prim|prim)", "(. ID)*"), lambda x, lst: (x, *lst)),
-	("(. ID)*", ("(. ID)+",), lambda lst: lst),
-	("(. ID)*", (), lambda: ()),
-	("(. ID)+", ("(. ID)+", "(. ID)"), lambda lst, x: (*lst, x)),
-	("(. ID)+", ("(. ID)",), lambda x: (x,)),
-	("(. ID)", (".", "ID"), lambda DOT, ID: ID),
+	# expr: union
+	#     | suffixed
+	#     | tuple
+	("expr", ("union",), lambda x: x),
+	("expr", ("tuple",), lambda x: x),
+	("expr", ("suffixed",), lambda x: x),
 	
-	# !expr: (!lmbd|!or) suffix*
-	("!expr", ("(!lmbd|!or)", "suffix*"), lambda x, suffix: x.Annotate(*suffix)),
-	("(!lmbd|!or)", ("!lmbd",), lambda x: x),
-	("(!lmbd|!or)", ("!or",), lambda x: x),
+	# union: (suffixed|tuple) |
+	#      | ((suffixed|tuple) |)+ (suffixed|tuple) |?
+	("union", ("(suffixed|tuple)", "|"), lambda x, PIPE: NodeUnion(x)),
+	("union", ("((suffixed|tuple) |)+", "(suffixed|tuple)", "|?"), lambda union, x, PIPE: union.Append(x)),
+	("((suffixed|tuple) |)+", ("((suffixed|tuple) |)+", "(suffixed|tuple)", "|"), lambda union, x, PIPE: union.Append(x)),
+	("((suffixed|tuple) |)+", ("(suffixed|tuple)", "|"), lambda x, PIPE: NodeUnion(x)),
+	("(suffixed|tuple)", ("suffixed",), lambda x: x),
+	("(suffixed|tuple)", ("tuple",), lambda x: x),
+	("|?", ("|",), lambda PIPE: PIPE),
+	("|?", (), lambda: None),
 	
-	# suffix: : (!lmbd|!or|prefixed)
-	("suffix", (":", "(!lmbd|!or|prefixed)",), lambda COLON, attr: attr),
-	("(!lmbd|!or|prefixed)", ("!lmbd",), lambda x: x),
-	("(!lmbd|!or|prefixed)", ("!or",), lambda x: x),
-	("(!lmbd|!or|prefixed)", ("prefixed",), lambda x: x),
-	
-	# !lmbd: prefixed -> !lmbd | prefixed -> (!or|prefixed)
-	("!lmbd", ("prefixed", "->", "!lmbd"), lambda param, ARROW, body: NodeCallable(param, body)),
-	("!lmbd", ("prefixed", "->", "(!or|prefixed)"), lambda param, ARROW, body: NodeCallable(param, body)),
-	
-	# !or: (!or|prefixed) || (!and|prefixed) | !and
-	("!or", ("(!or|prefixed)", "||", "(!and|prefixed)"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
-	("!or", ("!and",), lambda x: x),
-	("(!or|prefixed)", ("!or",), lambda x: x),
-	("(!or|prefixed)", ("prefixed",), lambda x: x),
-	
-	# !and: (!and|prefixed) && (!eq|prefixed) | !eq
-	("!and", ("(!and|prefixed)", "&&", "(!eq|prefixed)"), lambda left, AND, right: NodeBinaryOp(AND, left, right)),
-	("!and", ("!eq",), lambda x: x),
-	("(!and|prefixed)", ("!and",), lambda x: x),
-	("(!and|prefixed)", ("prefixed",), lambda x: x),
-	
-	# !eq: (!eq|prefixed) (==|!=) (!rel|prefixed) | !rel
-	("!eq", ("(!eq|prefixed)", "(==|!=)", "(!rel|prefixed)"), lambda left, EQ, right: NodeBinaryOp(EQ, left, right)),
-	("!eq", ("!rel",), lambda x: x),
-	("(!eq|prefixed)", ("!eq",), lambda x: x),
-	("(!eq|prefixed)", ("prefixed",), lambda x: x),
-	("(==|!=)", ("==",), lambda eq: eq),
-	("(==|!=)", ("!=",), lambda neq: neq),
-	
-	# !rel: (!rel|prefixed) (<=|>=|<|>) (!add|prefixed) | !add
-	("!rel", ("(!rel|prefixed)", "(<=|>=|<|>)", "(!add|prefixed)"), lambda left, REL, right: NodeBinaryOp(REL, left, right)),
-	("!rel", ("!add",), lambda x: x),
-	("(!rel|prefixed)", ("!rel",), lambda x: x),
-	("(!rel|prefixed)", ("prefixed",), lambda x: x),
-	("(<=|>=|<|>)", (">=",), lambda gte: gte),
-	("(<=|>=|<|>)", ("<=",), lambda lse: lse),
-	("(<=|>=|<|>)", (">",), lambda gt: gt),
-	("(<=|>=|<|>)", ("<",), lambda ls: ls),
-	
-	# !add: (!add|prefixed) (+|-) (!mul|prefixed) | !mul
-	("!add", ("(!add|prefixed)", "(+|-)", "(!mul|prefixed)"), lambda left, ADD, right: NodeBinaryOp(ADD, left, right)),
-	("!add", ("!mul",), lambda x: x),
-	("(!add|prefixed)", ("!add",), lambda x: x),
-	("(!add|prefixed)", ("prefixed",), lambda x: x),
-	("(+|-)", ("+",), lambda plus: plus),
-	("(+|-)", ("-",), lambda minus: minus),
-	
-	# !mul: (!mul|prefixed) (*|/|%) (!unary|prefixed) | !unary
-	("!mul", ("(!mul|prefixed)", "(*|/|%)", "(!unary|prefixed)"), lambda left, MUL, right: NodeBinaryOp(MUL, left, right)),
-	("!mul", ("!unary",), lambda x: x),
-	("(!mul|prefixed)", ("!mul",), lambda x: x),
-	("(!mul|prefixed)", ("prefixed",), lambda x: x),
-	("(*|/|%)", ("*",), lambda mul: mul),
-	("(*|/|%)", ("/",), lambda div: div),
-	("(*|/|%)", ("%",), lambda mod: mod),
-	
-	# !unary: (+|-|!|~) (!unary|prefixed) | (!prefixed|!deref)
-	("!unary", ("(+|-|!|~)", "(!unary|prefixed)"), lambda PRE, unary: NodeUnaryOp(PRE, unary)),
-	("!unary", ("(!prefixed|!deref)",), lambda x: x),
-	("(!unary|prefixed)", ("!unary",), lambda x: x),
-	("(!unary|prefixed)", ("prefixed",), lambda x: x),
-	("(!prefixed|!deref)", ("!prefixed",), lambda x: x),
-	("(!prefixed|!deref)", ("!deref",), lambda x: x),
-	("(+|-|!|~)", ("+",), lambda plus: plus),
-	("(+|-|!|~)", ("-",), lambda minus: minus),
-	("(+|-|!|~)", ("!",), lambda not_: not_),
-	("(+|-|!|~)", ("~",), lambda bit_not: bit_not),
-	
-	# !prefixed: @ ((!prim|prim) (. ID)*)+ !prefixed | ((!prim|prim) (. ID)*)+ !prim | ((!prim|prim) (. ID)*)+ ((!prim|prim) (. ID)+)
-	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "!prefixed"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
-	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "!prim"), lambda AT, lst, x: x.Annotate(chain_call_then_deref(*lst))),
-	("!prefixed", ("@", "((!prim|prim) (. ID)*)+", "((!prim|prim) (. ID)+)"), lambda AT, lst, xs: chain_deref(xs[0], *xs[1:]).Annotate(chain_call_then_deref(*lst))),
-	("((!prim|prim) (. ID)+)", ("(!prim|prim)", "(. ID)+"), lambda x, lst: (x, *lst)),
-	
-	# !deref: (!deref|prim) . ID | !app
-	("!deref", ("(!deref|prim)", ".", "ID"), lambda x, DOT, ID: NodeDeref(x, ID)),
-	("!deref", ("!app",), lambda x: x),
-	("(!deref|prim)", ("!deref",), lambda x: x),
-	("(!deref|prim)", ("prim",), lambda x: x),
-	
-	# !app: (!deref|prim) (!prim|prim) | !prim
-	("!app", ("(!deref|prim)", "(!prim|prim)"), NodeApply),
-	("!app", ("!prim",), lambda x: x),
-	("(!prim|prim)", ("!prim",), lambda x: x),
-	("(!prim|prim)", ("prim",), lambda x: x),
-	
-	# prim: INT | ID | ( expr ) | tup
-	("prim", ("INT",), NodeInt),
-	("prim", ("ID",), NodeLabel),
-	("prim", ("(", "expr", ")"), lambda LPR, x, RPR: x),
-	("prim", ("tup",), lambda x: x),
-	
-	# !prim: ( !expr ) | !tup | { stmt+ }
-	("!prim", ("(", "!expr", ")"), lambda LPR, expr, RPR: expr),
-	("!prim", ("!tup",), lambda x: x),
-	("prim", ("{", "stmt+", "}",), lambda LPR, cmpd, RPR: cmpd),
-	
-	# tup: ( ) | ( expr , ) | ( (expr ,)+ expr ,? )
-	("tup", ("(", ")",), lambda LPR, RPR: NodeTuple()),
-	("tup", ("(", "expr", ",", ")"), lambda LPR, x, RPR: NodeTuple(x)),
-	("tup", ("(", "(expr ,)+", "expr", ",?", ")"), lambda LPR, tup, x, COMMA, RPR: tup.Append(x)),
-	("(expr ,)+", ("(expr ,)+", "expr", ","), lambda tup, x, COMMA: tup.Append(x)),
-	("(expr ,)+", ("expr", ","), lambda x, COMMA: NodeTuple(x)),
+	# tuple: suffixed ,
+	#      | (suffixed ,)+ suffixed ,?
+	("tuple", ("suffixed", ","), lambda x, COMMA: NodeTuple(x)),
+	("tuple", ("(suffixed ,)+", "suffixed", ",?"), lambda tup, x, COMMA: tup.Append(x)),
+	("(suffixed ,)+", ("(suffixed ,)+", "suffixed", ","), lambda tup, x, COMMA: tup.Append(x)),
+	("(suffixed ,)+", ("suffixed", ","), lambda x, COMMA: NodeTuple(x)),
 	(",?", (",",), lambda COMMA: COMMA),
 	(",?", (), lambda: None),
 	
-	# !tup: ( !expr , ) | ( !expr, (, (!expr|expr))+ ,? ) | ( (expr ,)+ !expr (, (!expr|expr))* ,? )
-	("!tup", ("(", "!expr", ",", ")"), lambda LPR, x, comma, rpr: NodeTuple(x)),
-	("!tup", ("(", "!expr", "(, (!expr|expr))+", ",?", ")"), lambda LPR, x, tup, COMMA, RPR: NodeTuple(x).Merge(tup)),
-	("!tup", ("(", "(expr ,)+", "!expr" ,"(, (!expr|expr))*", ",?", ")"), lambda LPR, tup, x, cont, COMMA, RPR: tup.Append(x).Merge(cont)),
-	("(, (!expr|expr))*", ("(, (!expr|expr))+",), lambda x: x),
-	("(, (!expr|expr))*", (), lambda: NodeTuple()),
-	("(, (!expr|expr))+", ("(, (!expr|expr))+", ",", "(!expr|expr)"), lambda tup, COMMA, x: tup.Append(x)),
-	("(, (!expr|expr))+", (",", "(!expr|expr)"), lambda COMMA, x: x),
+	# suffixed: (or|lmbd) suffix*
+	("suffixed", ("(or|lmbd)", "suffix*"), lambda expr, attr: expr.AppendSuffix(*attr)),
+	("suffix*", ("suffix*", "suffix"), lambda lst, attr: (*lst, attr)),
+	("suffix*", (), lambda: ()),
+	("suffix", (":", "(or|lmbd)"), lambda COLON, attr: attr),
+	("(or|lmbd)", ("or",), lambda x: x),
+	("(or|lmbd)", ("lmbd",), lambda x: x),
+	
+	# lmbd: or -> (or|lmbd)
+	("lmbd", ("or", "->", "(or|lmbd)"), lambda param, ARROW, body: NodeCallable(param, body)),
+	
+	# or: or || and
+	#   | and
+	("or", ("or", "||", "and"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
+	("or", ("and",), lambda x: x),
+	
+	# and: and && eq
+	#    | eq
+	("and", ("and", "&&", "eq"), lambda left, AND, right: NodeBinaryOp(AND, left, right)),
+	("and", ("eq",), lambda x: x),
+	
+	# eq: eq (==|!=) rel
+	#   | rel
+	("eq", ("eq", "(==|!=)", "rel"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("eq", ("rel",), lambda x: x),
+	("(==|!=)", ("==",), lambda EQ: EQ),
+	("(==|!=)", ("!=",), lambda NEQ: NEQ),
+	
+	# rel: rel (<=|>=|<|>) add
+	#    | add
+	("rel", ("rel", "(<=|>=|<|>)", "add"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("rel", ("add",), lambda x: x),
+	("(<=|>=|<|>)", (">=",), lambda GTE: GTE),
+	("(<=|>=|<|>)", ("<=",), lambda LSE: LSE),
+	("(<=|>=|<|>)", (">",), lambda GT: GT),
+	("(<=|>=|<|>)", ("<",), lambda LS: LS),
+	
+	# add: add (+|-) mul
+	#    | mul
+	("add", ("add", "(+|-)", "mul"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("add", ("mul",), lambda x: x),
+	("(+|-)", ("+",), lambda PLUS: PLUS),
+	("(+|-)", ("-",), lambda MINUS: MINUS),
+	
+	# mul: mul (*|/|%) unary
+	#    | unary
+	("mul", ("mul", "(*|/|%)", "unary"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("mul", ("unary",), lambda x: x),
+	("(*|/|%)", ("*",), lambda MUL: MUL),
+	("(*|/|%)", ("/",), lambda DIV: DIV),
+	("(*|/|%)", ("%",), lambda MOD: MOD),
+	
+	# unary: (+|-|!) unary
+	#        | (prefixed|app|fn)
+	("unary", ("(+|-|!)", "unary"), lambda OP, val: OP(val)),
+	("unary", ("prefixed",), lambda x: x),
+	("unary", ("app",), lambda x: x),
+	("unary", ("fn",), lambda x: x),
+	("(+|-|!)", ("+",), lambda PLUS: lambda node: NodeUnaryOp(PLUS, node)),
+	("(+|-|!)", ("-",), lambda MINUS: lambda node: NodeUnaryOp(MINUS, node)),
+	("(+|-|!)", ("!",), lambda NOT: lambda node: NodeUnaryOp(NOT, node)),
+	
+	# app: post post* prefixed?
+	("app", ("post", "post*", "prefixed?"), lambda func, arg1, arg2: make_applied(lambda x: x, func, arg1, *arg2)),
+	("prefixed?", ("prefixed",), lambda x: (x,)),
+	("prefixed?", (), lambda: ()),
+	
+	# prefixed: prefix* @ ((+|-|!)* post) post* (post|fn)
+	("prefixed", ("prefix*", "@", "((+|-|!)* post)", "post*", "(post|fn)"), lambda attr, AT, func, follow, x: (x.AppendPrefix(*attr, make_applied(*func, *follow)), x[1])),
+	("prefix", ("@", "((+|-|!)* post)", "post*"), lambda AT, func, follow: make_applied(*func, *follow)),
+	("prefix*", ("prefix*", "prefix"), lambda lst, prefix: (*lst, prefix)),
+	("prefix*", (), lambda: ()),
+	("((+|-|!)* post)", ("(+|-|!)*", "post"), lambda OP, x: (OP, x)),
+	("(+|-|!)*", ("(+|-|!)*", "(+|-|!)"), lambda head, unary: lambda node: head(unary(node))),
+	("(+|-|!)*", (), lambda: lambda x: x),
+	("post*", ("post*", "post"), lambda lst, x: (*lst, x)),
+	("post*", (), lambda: ()),
+	("(post|fn)", ("post",), lambda x: x),
+	("(post|fn)", ("fn",), lambda x: (x, lambda y: y)),
+	
+	# fn: FN ((+|-|!)* post) (+|-|!)* (prefixed|post|fn)
+	("fn", ("FN", "((+|-|!)* post)", "(+|-|!)*", "(prefixed|post|fn)"), lambda FN, param, UNARY, body: NodeCallable(make_applied(*param), make_applied(UNARY, body))),
+	("(prefixed|post|fn)", ("prefixed",), lambda x: x),
+	("(prefixed|post|fn)", ("post",), lambda x: x),
+	("(prefixed|post|fn)", ("fn",), lambda x: (x, lambda y: y)),
+	
+	# post: prim postfix*
+	("post", ("prim", "postfix*"), lambda x, post: (x, post)),
+	("postfix*", ("postfix*", "postfix"), lambda head, post: lambda node: post(head(node))),
+	("postfix*", (), lambda: lambda x: x),
+	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),  # . (+|-|!)* prim
+	("postfix", ("[", "(assign|expr)", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
+	("postfix", ("#",), lambda HASH: HASH),
+	
+	# prim: INT
+	#      | ID
+	#      | ()
+	#      | ( | )
+	#      | ( (assign|expr) )
+	#      | cmpd
+	("prim", ("INT",), NodeInt),
+	("prim", ("ID",), NodeLabel),
+	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
+	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
+	("prim", ("(", "(assign|expr)", ")"), lambda LPR, x, RPR: x),
+	("prim", ("cmpd",), lambda x: x),
+	
+	# cmpd: { stmt* (assign|expr)? }
+	("cmpd", ("{", "stmt*", "(assign|expr)", "}"), lambda LPR, cmpd, expr, RPR: cmpd.Append(expr)),
+	("cmpd", ("{", "stmt*", "}"), lambda LPR, cmpd, RPR: cmpd),
 ]
 SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
+
+def make_applied(
+	unary: Callable[[Node], Node],
+	head: tuple[Node, Callable[[Node], Node]],
+	*items: tuple[Node, Callable[[Node], Node]]
+):
+	func = head[1](head[0])
+	for node, postfix in items[1:]:
+		node = NodeApply(func, node)
+		func = postfix(node)
+	return unary(func)
