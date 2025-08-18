@@ -164,7 +164,7 @@ SYNTAX_RULES = [
 	("(+|-|!)", ("!",), lambda NOT: lambda node: NodeUnaryOp(NOT, node)),
 	
 	# app: post post* prefixed?
-	("app", ("post", "post*", "prefixed?"), lambda func, arg1, arg2: make_applied(lambda x: x, func, arg1, *arg2)),
+	("app", ("post", "post*", "prefixed?"), lambda func, arg1, arg2: make_applied(lambda x: x, func, *arg1, *arg2)),
 	("prefixed?", ("prefixed",), lambda x: (x,)),
 	("prefixed?", (), lambda: ()),
 	
@@ -220,7 +220,7 @@ def make_applied(
 	*items: tuple[Node, Callable[[Node], Node]]
 ):
 	func = head[1](head[0])
-	for node, postfix in items[1:]:
+	for node, postfix in items:
 		node = NodeApply(func, node)
 		func = postfix(node)
 	return unary(func)
