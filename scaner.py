@@ -13,16 +13,16 @@ class Token[T]:
 		self._col_idx = col_idx
 		self._token_len = token_len
 	
-	def GetType(self) -> T | None:
+	def GetType(self):
 		return self._type
 	
-	def GetValue(self) -> str:
+	def GetValue(self):
 		return self._lines[self._line_num][self._col_idx:self._col_idx + self._token_len]
 	
-	def GetLineNum(self) -> int:
+	def GetLineNum(self):
 		return self._line_num + 1
 	
-	def GetColumnNum(self) -> int:
+	def GetColumnNum(self):
 		return self._col_idx + 1
 	
 	def __str__(self):
@@ -67,7 +67,7 @@ class Scaner[T]:
 		yield Token(None, lines, line_num - 1, col_idx, 0)
 	
 	@classmethod
-	def Build(cls, types: Iterable[tuple[T, str]]) -> "Scaner[T]":
+	def Build(cls, types: Iterable[tuple[T, str]]):
 		def build_matcher(pattern: str):
 			r = re.compile(pattern)
 			def match(s: str, offset: int):

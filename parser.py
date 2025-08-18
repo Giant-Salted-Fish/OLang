@@ -35,10 +35,10 @@ class Syntax[T]:
 		self._first_sets = first_sets
 		self._epsilons = epsilons
 	
-	def GetStartSymbol(self) -> str:
+	def GetStartSymbol(self):
 		return self._start_symbol
 	
-	def GetProductionsOf(self, lhs: str) -> Collection[Production[T]]:
+	def GetProductionsOf(self, lhs: str):
 		return self._symbol_2_production[lhs]
 	
 	def AsTerminal(self, symbol: str | T) -> T | None:
@@ -56,16 +56,16 @@ class Syntax[T]:
 			assert isinstance(symbol, str)
 			return symbol
 	
-	def GetFirstSet(self, symbol: str) -> set[T]:
+	def GetFirstSet(self, symbol: str):
 		return self._first_sets[symbol]
 	
-	def CanProduceEpsilon(self, symbol: str) -> bool:
+	def CanProduceEpsilon(self, symbol: str):
 		return symbol in self._epsilons
 	
-	def BuildInitialState(self) -> frozenset[Item[T]]:
+	def BuildInitialState(self):
 		return self.ExpandState([(prod, 0, (None,)) for prod in self.GetProductionsOf(self._start_symbol)])
 	
-	def ExpandState(self, items: Iterable[tuple[Production[T], int, Iterable[T | None]]]) -> frozenset[Item[T]]:
+	def ExpandState(self, items: Iterable[tuple[Production[T], int, Iterable[T | None]]]):
 		new_state: dict[tuple[Production[T], int], set[T | None]] = {}
 		def expand_item(production: Production[T], dot_pos: int, lookahead: set[T | None]):
 			if (production, dot_pos) in new_state:
@@ -165,7 +165,7 @@ class Syntax[T]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> Any:
+	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]):
 		state_stack = [self.BuildInitialState()]
 		action_stack: list[Any] = []
 		accept = False
@@ -288,7 +288,7 @@ class Parser[T]:
 	def __str__(self):
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
-	def Parse(self, token_stream: Iterator[Token[T]]) -> Any:
+	def Parse(self, token_stream: Iterator[Token[T]]):
 		state_stack = [0]
 		action_stack: list[Any] = []
 		accept = False
