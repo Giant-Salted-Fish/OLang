@@ -116,10 +116,6 @@ class NodeCompound(Node):
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
-	def Append(self, node: Node) -> Self:
-		self.nodes = (*self.nodes, node)
-		return self
-	
 	def Eval(self, ctx):
 		val = None
 		for node in self.nodes:
@@ -222,17 +218,13 @@ class NodeUnion(Node):
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
-	def Append(self, *nodes: Node) -> Self:
-		self.nodes = self.nodes + nodes
-		return self
-	
 	def Eval(self, ctx):
 		raise NotImplementedError("Try to evaluate union expression")
 	
 	def GenCode(self):
 		elements = [node.GenCode() for node in self.nodes]
 		if all(len(lines) == 1 for lines in elements):
-			inner = "| ".join(lines[0] for lines in elements)
+			inner = "|".join(lines[0] for lines in elements)
 			if len(elements) == 1:
 				inner += "|"
 			lines = [f"({inner})"]
@@ -251,10 +243,6 @@ class NodeTuple(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
-	
-	def Append(self, *nodes: Node) -> Self:
-		self.nodes = self.nodes + nodes
-		return self
 	
 	def Eval(self, ctx):
 		return tuple(node.Eval(ctx) for node in self.nodes)
@@ -395,3 +383,19 @@ class NodeIndex(Node):
 				"]",
 			]
 		return self._AppendAttrText(lines)
+
+
+class NodeReturn(Node):
+	def __init__(self, expr: Node):
+		self.expr = expr
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.expr}")
+	
+	def Eval(self, ctx):
+		# TODO: Handle control flow transfer
+		return super().Eval(ctx)
+	
+	def GenCode(self):
+		expr = self.expr.GenCode()
+		return self._JoinText(" ", ["return"], expr)

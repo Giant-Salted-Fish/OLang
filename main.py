@@ -13,5 +13,6 @@ if __name__ == "__main__":
 	print("\n".join(ast.GenCode()))
 	
 	parser = syntax.BuildLR1Parser()
+	print(parser)
 	ast2 = parser.Parse(scaner.Tokenize(source_code))
 	print(ast2)

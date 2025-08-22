@@ -10,14 +10,17 @@ class Production[T](NamedTuple):
 	rhs: tuple[str | T, ...]
 	action: Callable
 	
-	def __str__(self):
-		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs)}"
+	def __repr__(self):
+		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}"
 
 
 class Item[T](NamedTuple):
 	production: Production[T]
 	dot_pos: int
 	lookaheads: frozenset[T | None]
+	
+	def __repr__(self):
+		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookaheads={self.lookaheads})"
 
 
 class Syntax[T]:
