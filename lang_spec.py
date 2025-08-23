@@ -61,25 +61,19 @@ SYNTAX_RULES = [
 	("stmt_lst", (), lambda: ()),
 	
 	# stmt: (expr|var_decl|outer_assign|return) ;
-	#     | (fn_decl|cmpd) ;?
+	#     | fn_decl ;?
 	("stmt", ("expr", ";"), lambda x, SEMI: x),
 	("stmt", ("var_decl", ";"), lambda x, SEMI: x),
 	("stmt", ("outer_assign", ";"), lambda x, SEMI: x),
 	("stmt", ("return", ";"), lambda x, SEMI: x),
 	("stmt", ("fn_decl", ";?"), lambda x, SEMI: x),
-	("stmt", ("cmpd", ";?"), lambda attr, x, SEMI: x.AppendPrefix(*attr)),
 	(";?", (";",), lambda SEMI: SEMI),
 	(";?", (), lambda: None),
 	
-	("var_decl", ("prefix*", "LET", "expr", "=", "(cmpd|expr)"), lambda attr, LET, var, EQ, expr: NodeDecl(var, expr).AppendPrefix(*attr)),
-	("outer_assign", ("expr", "=", "(cmpd|expr)"), lambda var, EQ, expr: NodeAssign(var, expr)),
-	("return", ("prefix*", "RETURN", "(cmpd|expr)"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
-	("fn_decl", ("prefix*", "FN", "post", "post", "(cmpd|fn|post)"), lambda attr, FN, label, param, body: NodeDecl(make_applied(label), NodeCallable(make_applied(param), body)).AppendPrefix(*attr)),
-	
-	# cmpd: prefix* { stmt_lst }
-	("cmpd", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
-	("(cmpd|expr)", ("cmpd",), lambda x: x),
-	("(cmpd|expr)", ("expr",), lambda x: x),
+	("var_decl", ("prefix*", "LET", "expr", "=", "expr"), lambda attr, LET, var, EQ, expr: NodeDecl(var, expr).AppendPrefix(*attr)),
+	("outer_assign", ("expr", "=", "expr"), lambda var, EQ, expr: NodeAssign(var, expr)),
+	("return", ("prefix*", "RETURN", "expr"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
+	("fn_decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeCallable(param, body)).AppendPrefix(*attr)),
 	
 	# expr: (union|tuple|suffixed)
 	("expr", ("union",), lambda x: x),
@@ -105,22 +99,15 @@ SYNTAX_RULES = [
 	("(assign|suffixed)", ("assign",), lambda x: x),
 	("(assign|suffixed)", ("suffixed",), lambda x: x),
 	
-	# suffixed: (lmbd|fn|or) suffix*
-	("suffixed", ("(lmbd|fn|or)", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
-	("suffix*", ("suffix*", ":", "(lmbd|fn|or)"), lambda lst, COLON, attr: (*lst, attr)),
+	# suffixed: (lmbd|or) suffix*
+	("suffixed", ("(lmbd|or)", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
+	("suffix*", ("suffix*", ":", "(lmbd|or)"), lambda lst, COLON, attr: (*lst, attr)),
 	("suffix*", (), lambda: ()),
-	("(lmbd|fn|or)", ("lmbd",), lambda x: x),
-	("(lmbd|fn|or)", ("fn",), lambda x: x),
-	("(lmbd|fn|or)", ("or",), lambda x: x),
+	("(lmbd|or)", ("lmbd",), lambda x: x),
+	("(lmbd|or)", ("or",), lambda x: x),
 	
-	# lmbd: or -> (lmbd|fn|or)
-	("lmbd", ("or", "->", "(lmbd|fn|or)"), lambda param, ARROW, body: NodeCallable(param, body)),
-	
-	# fn: prefix* FN post (cmpd|fn|post)
-	("fn", ("prefix*", "FN", "post", "(cmpd|fn|post)"), lambda attr, FN, param, body: NodeCallable(make_applied(param), body).AppendPrefix(*attr)),
-	("(cmpd|fn|post)", ("cmpd",), lambda x: x),
-	("(cmpd|fn|post)", ("fn",), lambda x: x),
-	("(cmpd|fn|post)", ("post",), lambda x: make_applied(x)),
+	# lmbd: or -> (lmbd|or)
+	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeCallable(param, body)),
 	
 	# or: or || and
 	#   | and
@@ -164,20 +151,31 @@ SYNTAX_RULES = [
 	("(*|/|%)", ("%",), lambda MOD: MOD),
 	
 	# unary: (+|-|!) unary
-	#      | (prefixed|app)
+	#      | (app|fn|cmpd|prefixed)
 	("unary", ("(+|-|!)", "unary"), lambda OP, val: OP(val)),
-	("unary", ("prefixed",), lambda x: x),
 	("unary", ("app",), lambda x: x),
+	("unary", ("fn",), lambda x: x),
+	("unary", ("cmpd",), lambda x: x),
+	("unary", ("prefixed",), lambda x: x),
 	("(+|-|!)", ("+",), lambda PLUS: lambda node: NodeUnaryOp(PLUS, node)),
 	("(+|-|!)", ("-",), lambda MINUS: lambda node: NodeUnaryOp(MINUS, node)),
 	("(+|-|!)", ("!",), lambda NOT: lambda node: NodeUnaryOp(NOT, node)),
 	
-	# app: post+ (cmpd|fn|prefixed)?
-	("app", ("post+", "(cmpd|fn|prefixed)?"), lambda func, arg: make_applied(*func, *arg)),
-	("(cmpd|fn|prefixed)?", ("cmpd",), lambda x: (x,)),
-	("(cmpd|fn|prefixed)?", ("fn",), lambda x: (x,)),
-	("(cmpd|fn|prefixed)?", ("prefixed",), lambda x: (x,)),
-	("(cmpd|fn|prefixed)?", (), lambda: ()),
+	# app: post+ (fn|cmpd|prefixed)?
+	("app", ("post+", "(fn|cmpd|prefixed)?"), lambda func, arg: NodeApply(make_applied(*func), arg) if arg else make_applied(*func)),
+	("(fn|cmpd|prefixed)?", ("fn",), lambda x: x),
+	("(fn|cmpd|prefixed)?", ("cmpd",), lambda x: x),
+	("(fn|cmpd|prefixed)?", ("prefixed",), lambda x: x),
+	("(fn|cmpd|prefixed)?", (), lambda: None),
+	
+	# fn: prefix* FN post (fn|cmpd|post)
+	("fn", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, param, body: NodeCallable(param, body).AppendPrefix(*attr)),
+	("(fn|cmpd|post)", ("fn",), lambda x: x),
+	("(fn|cmpd|post)", ("cmpd",), lambda x: x),
+	("(fn|cmpd|post)", ("post",), lambda x: make_applied(x)),
+	
+	# cmpd: prefix* { stmt_lst }
+	("cmpd", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
 	
 	# prefixed: prefix* @ post+ post
 	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: make_applied(x).AppendPrefix(*attr_lst, make_applied(*attr))),
@@ -199,14 +197,12 @@ SYNTAX_RULES = [
 	#      | ID
 	#      | ()
 	#      | ( | )
-	#      | ( cmpd )
 	#      | ( expr )
 	#      | ( assign )
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
-	("prim", ("(", "cmpd", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "expr", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "assign", ")"), lambda LPR, x, RPR: x),
 ]

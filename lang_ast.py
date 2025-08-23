@@ -117,7 +117,7 @@ class NodeCompound(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Eval(self, ctx):
-		val = None
+		val = ()
 		for node in self.nodes:
 			val = node.Eval(ctx)
 		return val
@@ -190,6 +190,7 @@ class NodeCallable(Node):
 	
 	def GenCode(self):
 		lines = self._JoinText(" -> ", self.param.GenCode(), self.body.GenCode())
+		lines[0] = f"fn {lines[0]}"
 		return self._AppendAttrText(lines)
 
 
