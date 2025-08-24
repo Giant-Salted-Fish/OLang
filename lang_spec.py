@@ -54,29 +54,44 @@ TERMINALS = set(t for t, _ in TOKEN_TYPES)
 SYNTAX_RULES = [
 	("S", ("stmt_lst",), lambda lst: NodeCompound(*lst)),
 	
-	# stmt_lst: ((stmt ;)|decl|;) stmt_lst
-	#         | (stmt|ε)
+	# stmt_lst: ((stmt ;)|decl|if_else..|;) stmt_lst
+	#         | (stmt|if..)?
 	("stmt_lst", ("stmt", ";", "stmt_lst"), lambda x, SEMI, lst: (x, *lst)),
 	("stmt_lst", ("decl", "stmt_lst"), lambda x, lst: (x, *lst)),
+	("stmt_lst", ("if_else..", "stmt_lst"), lambda x, lst: (*x, *lst)),
 	("stmt_lst", (";", "stmt_lst"), lambda SEMI, lst: lst),
 	("stmt_lst", ("stmt",), lambda x: (x,)),
+	("stmt_lst", ("if..",), lambda x: x),
 	("stmt_lst", (), lambda: ()),
 	
 	# stmt: assign
 	#     | prefix* LET expr = assign
-	#     | prefix* RETURN expr
+	#     | prefix* RETURN assign
 	("stmt", ("assign",), lambda x: x),
 	("stmt", ("prefix*", "LET", "expr", "=", "assign"), lambda attr, LET, var, EQ, expr: NodeDecl(var, expr).AppendPrefix(*attr)),
-	("stmt", ("prefix*", "RETURN", "expr"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "RETURN", "assign"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
+	# ("stmt", ("prefix*", "RETURN", "if_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* FN (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post)
 	("decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeCallable(param, body)).AppendPrefix(*attr)),
-	("decl", ("if_else",), lambda x: x),
+	
+	# if_else..: prefix* IF (fn|cmpd|post) (fn|cmpd|post) else..
+	("if_else..", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
+	("else..", ("prefix*", "ELSE", "if_else.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
+	("else..", ("prefix*", "ELSE", "(fn|cmpd|post)"), lambda attr, ELSE, x: (x.AppendPrefix(*attr),)),
+	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
+	("else..", ("decl",), lambda x: (NodeCompound(), x)),
+	
+	# if..: prefix* IF (fn|cmpd|post) (fn|cmpd|post) else_if..
+	("if..", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else_if.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
+	("else_if..", ("prefix*", "ELSE", "if.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
+	("else_if..", ("stmt",), lambda x: (NodeCompound(), x)),
+	("else_if..", (), lambda: (NodeCompound(),)),
 	
 	# if_else: prefix* IF (fn|cmpd|post) (fn|cmpd|post) else?
 	("if_else", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, expr, otherwise).AppendPrefix(*attr)),
-	("else?", ("ELSE", "if_else"), lambda ELSE, x: x),
-	("else?", ("ELSE", "(fn|cmpd|post)"), lambda ELSE, x: x),
+	("else?", ("prefix*", "ELSE", "if_else"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "(fn|cmpd|post)"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
 	("else?", (), lambda: NodeCompound()),
 	
 	# assign: expr = assign
@@ -91,7 +106,7 @@ SYNTAX_RULES = [
 	
 	# union: (tuple|suffixed) | union..
 	# union..: (tuple|suffixed) | union..
-	# union..: (tuple|suffixed|ε)
+	# union..: (tuple|suffixed)?
 	("union", ("(tuple|suffixed)", "|", "union.."), lambda x, PIPE, lst: NodeUnion(x, *lst)),
 	("union..", ("(tuple|suffixed)", "|", "union.."), lambda x, PIPE, lst: (x, *lst)),
 	("union..", ("(tuple|suffixed)",), lambda x: (x,)),
@@ -101,7 +116,7 @@ SYNTAX_RULES = [
 	
 	# tuple: suffixed , tuple..
 	# tuple..: suffixed , tuple..
-	# tuple..: (suffixed|ε)
+	# tuple..: suffixed?
 	("tuple", ("suffixed", ",", "tuple.."), lambda x, COMMA, lst: NodeTuple(x, *lst)),
 	("tuple..", ("suffixed", ",", "tuple.."), lambda x, COMMA, lst: (x, *lst)),
 	("tuple..", ("suffixed",), lambda x: (x,)),
@@ -207,12 +222,14 @@ SYNTAX_RULES = [
 	#      | ( | )
 	#      | ( expr )
 	#      | ( decl )
+	#      | ( if_else )
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
+	("prim", ("(", "if_else", ")"), lambda LPR, x, RPR: x),
 ]
 SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
 

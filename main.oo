@@ -4,5 +4,19 @@ fn test(a: I32, b) {
     let func = (a: I32, b: I32) -> a + b;
     let c = a + 9 * 5;
     let d = 4 * (b - 2);
+    @MetaData(Frequency.High)
+    if (c > 3) {
+        d = d * 5;
+    }
+    @MetaData(Frequency.Median)
+    else if (c != 0 and d == 0) {
+        c = @Label(3);
+        //@Lazy{timeout=3; freeze=false} d = false;
+    }
+    else {
+        for_each(lst) fn it {
+            print(it + 1)
+        }
+    }
     return (if (c != 0) { c } else { func(c, d) })
 }
