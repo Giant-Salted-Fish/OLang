@@ -345,19 +345,27 @@ class NodeUnaryOp(Node):
 	
 	def GenCode(self):
 		val = self.node.GenCode()
-		return [f"{self.op.GetValue()}{val[0]}", *val[1:]]
+		lines = [f"{self.op.GetValue()}{val[0]}", *val[1:]]
+		return self._AppendAttrText(lines)
 
 
 class NodeAccess(Node):
-	def __init__(self, obj: Node, field: Token):
+	def __init__(self, obj: Node, field: Node):
 		self.obj = obj
-		self.attr = field
+		self.field = field
 	
 	def __repr__(self):
-		return self._GenStr(f"{self.obj}, {repr(self.attr.GetValue())}")
+		return self._GenStr(f"{self.obj}, {self.field}")
 	
 	def Eval(self, ctx):
-		return getattr(self.obj.Eval(ctx), self.attr.GetValue())
+		assert isinstance(self.field, NodeLabel)
+		return getattr(self.obj.Eval(ctx), self.field.token.GetValue())
+	
+	def GenCode(self):
+		obj = self.obj.GenCode()
+		field = self.field.GenCode()
+		lines = self._JoinText(".", obj, field)
+		return self._AppendAttrText(lines)
 
 
 class NodeIndex(Node):
@@ -399,4 +407,28 @@ class NodeReturn(Node):
 	
 	def GenCode(self):
 		expr = self.expr.GenCode()
-		return self._JoinText(" ", ["return"], expr)
+		lines = self._JoinText(" ", ["return"], expr)
+		return self._AppendAttrText(lines)
+
+
+class NodeIfElse(Node):
+	def __init__(self, cond: Node, true_branch: Node, false_branch: Node):
+		self.cond = cond
+		self.true_branch = true_branch
+		self.false_branch = false_branch
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
+	
+	def Eval(self, ctx):
+		if self.cond.Eval(ctx):
+			return self.true_branch.Eval(ctx)
+		else:
+			return self.false_branch.Eval(ctx)
+	
+	def GenCode(self):
+		cond = self.cond.GenCode()
+		true_branch = self.true_branch.GenCode()
+		false_branch = self.false_branch.GenCode()
+		lines = self._JoinText(" ", ["if"], cond, true_branch, ["else"], false_branch)
+		return self._AppendAttrText(lines)

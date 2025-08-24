@@ -4,7 +4,10 @@ from lang_ast import *
 
 TOKEN_TYPES = [
 	("RETURN", r"return"),
+	("ELSE", r"else"),
 	("LET", r"let"),
+	("FOR", r"for"),
+	("IF", r"if"),
 	("FN", r"fn"),
 	
 	("INT", r"[0-9]\d*"),
@@ -68,6 +71,13 @@ SYNTAX_RULES = [
 	
 	# decl: prefix* FN (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post)
 	("decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeCallable(param, body)).AppendPrefix(*attr)),
+	("decl", ("if_else",), lambda x: x),
+	
+	# if_else: prefix* IF (fn|cmpd|post) (fn|cmpd|post) else?
+	("if_else", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, expr, otherwise).AppendPrefix(*attr)),
+	("else?", ("ELSE", "if_else"), lambda ELSE, x: x),
+	("else?", ("ELSE", "(fn|cmpd|post)"), lambda ELSE, x: x),
+	("else?", (), lambda: NodeCompound()),
 	
 	# assign: expr = assign
 	#       | expr

@@ -4,5 +4,5 @@ fn test(a: I32, b) {
     let func = (a: I32, b: I32) -> a + b;
     let c = a + 9 * 5;
     let d = 4 * (b - 2);
-    return func(c, d);
+    return (if (c != 0) { c } else { func(c, d) })
 }
