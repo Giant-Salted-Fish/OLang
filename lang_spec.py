@@ -7,7 +7,7 @@ TOKEN_TYPES = [
 	("LET", r"let"),
 	("FN", r"fn"),
 	
-	("INT", r"[1-9]\d*"),
+	("INT", r"[0-9]\d*"),
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
 	
 	("{", r"\{"),
