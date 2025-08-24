@@ -432,3 +432,45 @@ class NodeIfElse(Node):
 		false_branch = self.false_branch.GenCode()
 		lines = self._JoinText(" ", ["if"], cond, true_branch, ["else"], false_branch)
 		return self._AppendAttrText(lines)
+
+
+class NodeWhileElse(Node):
+	def __init__(self, cond: Node, loop_body: Node, else_branch: Node):
+		self.cond = cond
+		self.loop_body = loop_body
+		self.else_branch = else_branch
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
+	
+	def Eval(self, ctx):
+		pass
+	
+	def GenCode(self):
+		cond = self.cond.GenCode()
+		loop_body = self.loop_body.GenCode()
+		else_branch = self.else_branch.GenCode()
+		lines = self._JoinText(" ", ["while"], cond, loop_body, ["else"], else_branch)
+		return self._AppendAttrText(lines)
+
+
+class NodeForElse(Node):
+	def __init__(self, iterable: Node, var: Node, loop_body: Node, else_branch: Node):
+		self.iterable = iterable
+		self.var = var
+		self.loop_body = loop_body
+		self.else_branch = else_branch
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
+	
+	def Eval(self, ctx):
+		pass
+	
+	def GenCode(self):
+		iterable = self.iterable.GenCode()
+		var = self.var.GenCode()
+		loop_body = self.loop_body.GenCode()
+		else_branch = self.else_branch.GenCode()
+		lines = self._JoinText(" ", ["for"], iterable, var, loop_body, ["else"], else_branch)
+		return self._AppendAttrText(lines)

@@ -5,13 +5,13 @@ fn test(a: I32, b) {
     let c = a + 9 * 5;
     let d = 4 * (b - 2);
     @MetaData(Frequency.High)
-    if (c > 3) {
+    for (1,2,3) x {
         d = d * 5;
     }
     @MetaData(Frequency.Median)
     else if (c != 0 and d == 0) {
         c = @Label(3);
-        //@Lazy{timeout=3; freeze=false} d = false;
+        @Lazy({timeout=3; freeze=false}) d = false;
     }
     else {
         for_each(lst) fn it {
