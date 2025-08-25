@@ -15,6 +15,8 @@ TOKEN_TYPES = [
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
 	("STR", r"\"(?:[^\\]|\\[tnr])*\""),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
 	
+	(".(", r"\.\("),
+	(".{", r"\.\{"),
 	("{", r"\{"),
 	("}", r"\}"),
 	("[", r"\["),
@@ -240,7 +242,9 @@ SYNTAX_RULES = [
 	#      | ( | )
 	#      | ( expr )
 	#      | ( decl )
-	#      | ( if_else )
+	#      | ( ctrl_else )
+	#      | .( field_lst )
+	#      | .{ stmt_lst }
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("STR",), NodeLabel),
@@ -249,6 +253,18 @@ SYNTAX_RULES = [
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "ctrl_else", ")"), lambda LPR, x, RPR: x),
+	("prim", (".(", "field_lst", ")"), lambda LPR, x, RPR: NodeStruct(*x)),
+	("prim", (".{", "stmt_lst", "}"), lambda LPR, x, RPR: NodeStruct(*x)),
+	
+	# field_lst: field_set (;|,) field_lst
+	#          | field_set?
+	("field_lst", ("field_set", "(;|,)", "field_lst"), lambda x, SEMI, lst: (x, *lst)),
+	("field_lst", ("field_set",), lambda x: (x,)),
+	("field_lst", (), lambda: ()),
+	("field_set", ("prefix*", "LET", "expr", "=", "suffixed"), lambda attr, LET, label, EQ, expr: NodeDecl(label, expr).AppendPrefix(*attr)),
+	("field_set", ("expr", "=", "suffixed"), lambda label, EQ, expr: NodeDecl(label, expr)),
+	("(;|,)", (";",), lambda SEMI: SEMI),
+	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
 SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
 

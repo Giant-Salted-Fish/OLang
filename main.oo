@@ -1,3 +1,6 @@
+let MetaData = @Require("com.lang.MetaData");
+let Frequency = @Require("com.lang.MetaData.Frequency");
+
 
 fn test(a: I32, b) {
     // This is a test function
@@ -9,14 +12,19 @@ fn test(a: I32, b) {
         d = d * 5;
     }
     @MetaData(Frequency.Median)
-    else if (c != 0 and d == 0) {
-        c = @Label(3);
-        @Lazy({timeout=3; freeze=false}) d = false;
+    else if (c != 0 && d != 0) {
+        let e = d + c;
+        c = d * d;
     }
     else {
-        for_each(lst) fn it {
-            print(it + 1)
-        }
+        for_each(lst) fn x {
+            x + 1
+        };
     }
+    let s1 = .();
+    let s2 = .(a=3);
+    let s3 = .(a=3, b=5);
+    let s4 = .(let a = 3);
+    let s5 = .(let a = 3; let b = 5);
     return (if (c != 0) { c } else { func(c, d) })
 }

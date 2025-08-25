@@ -232,7 +232,7 @@ class NodeUnion(Node):
 		else:
 			lines = [
 				"(",
-				*(f"\t{line}," for lines in elements for line in (*lines[:-1], f"{lines[-1]}|")),
+				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]}|")),
 				")",
 			]
 		return self._AppendAttrText(lines)
@@ -266,8 +266,29 @@ class NodeTuple(Node):
 		else:
 			lines = [
 				"(",
-				*(f"\t{line}," for lines in elements for line in (*lines[:-1], f"{lines[-1]},")),
+				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]},")),
 				")",
+			]
+		return self._AppendAttrText(lines)
+
+
+class NodeStruct(Node):
+	def __init__(self, *fields: Node):
+		self.fields = fields
+	
+	def __repr__(self):
+		return self._GenStr(repr(self.fields)[1:-2])
+	
+	def GenCode(self):
+		elements = [field.GenCode() for field in self.fields]
+		if all(len(lines) == 1 for lines in elements):
+			inner = "; ".join(lines[0] for lines in elements)
+			lines = [f"({inner})"]
+		else:
+			lines = [
+				".(",
+				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]};")),
+				")"
 			]
 		return self._AppendAttrText(lines)
 
