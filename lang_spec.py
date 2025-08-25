@@ -88,6 +88,7 @@ SYNTAX_RULES = [
 	("else..", ("prefix*", "ELSE", "(fn|cmpd|post)"), lambda attr, ELSE, x: (x.AppendPrefix(*attr),)),
 	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
 	("else..", ("decl",), lambda x: (NodeCompound(), x)),
+	("else..", (";",), lambda SEMI: (NodeCompound(),)),
 	
 	# ctrl..: prefix* (IF|WHILE) (fn|cmpd|post) (fn|cmpd|post) else_x..
 	#       | prefix* FOR (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post) else_x..
