@@ -13,6 +13,7 @@ TOKEN_TYPES = [
 	
 	("INT", r"[0-9]\d*"),
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
+	("STR", r"\"(?:[^\\]|\\[tnr])*\""),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
 	
 	("{", r"\{"),
 	("}", r"\}"),
@@ -242,6 +243,7 @@ SYNTAX_RULES = [
 	#      | ( if_else )
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
+	("prim", ("STR",), NodeLabel),
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
