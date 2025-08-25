@@ -247,7 +247,7 @@ SYNTAX_RULES = [
 	#      | .{ stmt_lst }
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
-	("prim", ("STR",), NodeLabel),
+	("prim", ("STR",), NodeStr),
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),

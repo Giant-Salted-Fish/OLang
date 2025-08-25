@@ -109,6 +109,23 @@ class NodeLabel(Node):
 		return self._AppendAttrText([self.token.GetValue()])
 
 
+class NodeStr(Node):
+	def __init__(self, token: Token):
+		self.token = token
+	
+	def __repr__(self):
+		return self._GenStr(repr(self.token.GetValue()))
+	
+	def Eval(self, ctx):
+		return self.token.GetValue()
+	
+	def Unwind(self, val, put, ctx):
+		pass
+	
+	def GenCode(self):
+		return self._AppendAttrText([self.token.GetValue()])
+
+
 class NodeCompound(Node):
 	def __init__(self, *nodes: Node):
 		self.nodes = nodes
