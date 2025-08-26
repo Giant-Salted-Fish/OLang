@@ -3,6 +3,7 @@ from lang_ast import *
 
 
 TOKEN_TYPES = [
+	("TMPLT", r"template"),
 	("RETURN", r"return"),
 	("WHILE", r"while"),
 	("ELSE", r"else"),
@@ -76,8 +77,9 @@ SYNTAX_RULES = [
 	("stmt", ("prefix*", "RETURN", "assign"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
-	# decl: prefix* FN (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post)
-	("decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeCallable(param, body)).AppendPrefix(*attr)),
+	# decl: prefix* (TEMPL|FN) (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post)
+	("decl", ("prefix*", "TMPLT", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, TMPLT, label, param, body: NodeDecl(label, NodeTmplt(param, body)).AppendPrefix(*attr)),
+	("decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeFunc(param, body)).AppendPrefix(*attr)),
 	
 	# ctrl_else..: prefix* (IF|WHILE) (fn|cmpd|post) (fn|cmpd|post) else..
 	#            | prefix* FOR (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post) else..
@@ -150,7 +152,7 @@ SYNTAX_RULES = [
 	("(lmbd|or)", ("or",), lambda x: x),
 	
 	# lmbd: or -> (lmbd|or)
-	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeCallable(param, body)),
+	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeFunc(param, body)),
 	
 	# or: or || and
 	#   | and
@@ -211,9 +213,13 @@ SYNTAX_RULES = [
 	("(fn|cmpd|prefixed)?", ("prefixed",), lambda x: x),
 	("(fn|cmpd|prefixed)?", (), lambda: None),
 	
+	# tmplt: prefix* TMPLT (fn|cmpd|post) (fn|cmpd|post)
+	("tmplt", ("prefix*", "TMPLT", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
+	
 	# fn: prefix* FN post (fn|cmpd|post)
-	("fn", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, param, body: NodeCallable(param, body).AppendPrefix(*attr)),
+	("fn", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
 	("(fn|cmpd|post)", ("fn",), lambda x: x),
+	("(fn|cmpd|post)", ("tmplt",), lambda x: x),
 	("(fn|cmpd|post)", ("cmpd",), lambda x: x),
 	("(fn|cmpd|post)", ("post",), lambda x: make_applied(x)),
 	
@@ -236,15 +242,14 @@ SYNTAX_RULES = [
 	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),  # TODO: Stmt
 	("postfix", ("#",), lambda HASH: lambda node: node),
 	
-	# prim: INT
-	#      | ID
-	#      | ()
-	#      | ( | )
-	#      | ( expr )
-	#      | ( decl )
-	#      | ( ctrl_else )
-	#      | .( field_lst )
-	#      | .{ stmt_lst }
+	# prim: (INT|LABEL|STR)
+	#     | ( )
+	#     | ( | )
+	#     | ( expr )
+	#     | ( decl )
+	#     | ( ctrl_else )
+	#     | .( field_lst )
+	#     | .{ stmt_lst }
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("STR",), NodeStr),

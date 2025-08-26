@@ -187,7 +187,7 @@ class NodeAssign(Node):
 		return self._AppendAttrText(lines)
 
 
-class NodeCallable(Node):
+class NodeFunc(Node):
 	def __init__(self, param: Node, body: Node):
 		self.param = param
 		self.body = body
@@ -208,6 +208,30 @@ class NodeCallable(Node):
 	def GenCode(self):
 		lines = self._JoinText(" -> ", self.param.GenCode(), self.body.GenCode())
 		lines[0] = f"fn {lines[0]}"
+		return self._AppendAttrText(lines)
+
+
+class NodeTmplt(Node):
+	def __init__(self, param: Node, body: Node):
+		self.param = param
+		self.body = body
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.param}, {self.body}")
+	
+	def Eval(self, ctx):
+		return self
+	
+	def Invoke(self, arg, ctx):
+		new_ctx = ctx.PushScope()
+		self.param.Unwind(arg, new_ctx.Push, new_ctx)
+		ret_val = self.body.Eval(new_ctx)
+		new_ctx.PopScope()
+		return ret_val
+	
+	def GenCode(self):
+		lines = self._JoinText(" #> ", self.param.GenCode(), self.body.GenCode())
+		lines[0] = f"template {lines[0]}"
 		return self._AppendAttrText(lines)
 
 
