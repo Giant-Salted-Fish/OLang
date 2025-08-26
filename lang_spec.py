@@ -77,29 +77,29 @@ SYNTAX_RULES = [
 	("stmt", ("prefix*", "RETURN", "assign"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
-	# decl: prefix* (TEMPL|FN) (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post)
-	("decl", ("prefix*", "TMPLT", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, TMPLT, label, param, body: NodeDecl(label, NodeTmplt(param, body)).AppendPrefix(*attr)),
-	("decl", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeFunc(param, body)).AppendPrefix(*attr)),
+	# decl: prefix* (TEMPL|FN) (bound|post) (bound|post) (bound|post)
+	("decl", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, label, param, body: NodeDecl(label, NodeTmplt(param, body)).AppendPrefix(*attr)),
+	("decl", ("prefix*", "FN", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeFunc(param, body)).AppendPrefix(*attr)),
 	
-	# ctrl_else..: prefix* (IF|WHILE) (fn|cmpd|post) (fn|cmpd|post) else..
-	#            | prefix* FOR (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post) else..
-	("ctrl_else..", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl_else..", ("prefix*", "WHILE", "(fn|cmpd|post)", "(fn|cmpd|post)", "else.."), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, loop, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl_else..", ("prefix*", "FOR", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)", "else.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, loop, x[0]).AppendPrefix(*attr), *x[1:])),
+	# ctrl_else..: prefix* (IF|WHILE) (bound|post) (bound|post) else..
+	#            | prefix* FOR (bound|post) (bound|post) (bound|post) else..
+	("ctrl_else..", ("prefix*", "IF", "(bound|post)", "(bound|post)", "else.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl_else..", ("prefix*", "WHILE", "(bound|post)", "(bound|post)", "else.."), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, loop, x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl_else..", ("prefix*", "FOR", "(bound|post)", "(bound|post)", "(bound|post)", "else.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, loop, x[0]).AppendPrefix(*attr), *x[1:])),
 	
 	# else..: prefix* ELSE x_else..
 	#       | ((stmt ;)|decl)
 	("else..", ("prefix*", "ELSE", "ctrl_else.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
-	("else..", ("prefix*", "ELSE", "(fn|cmpd|post)"), lambda attr, ELSE, x: (x.AppendPrefix(*attr),)),
+	("else..", ("prefix*", "ELSE", "(bound|post)"), lambda attr, ELSE, x: (x.AppendPrefix(*attr),)),
 	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
 	("else..", ("decl",), lambda x: (NodeCompound(), x)),
 	("else..", (";",), lambda SEMI: (NodeCompound(),)),
 	
-	# ctrl..: prefix* (IF|WHILE) (fn|cmpd|post) (fn|cmpd|post) else_x..
-	#       | prefix* FOR (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post) else_x..
-	("ctrl..", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else_ctrl.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl..", ("prefix*", "WHILE", "(fn|cmpd|post)", "(fn|cmpd|post)", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, loop, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl..", ("prefix*", "FOR", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, loop, x[0]).AppendPrefix(*attr), *x[1:])),
+	# ctrl..: prefix* (IF|WHILE) (bound|post) (bound|post) else_x..
+	#       | prefix* FOR (bound|post) (bound|post) (bound|post) else_x..
+	("ctrl..", ("prefix*", "IF", "(bound|post)", "(bound|post)", "else_ctrl.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl..", ("prefix*", "WHILE", "(bound|post)", "(bound|post)", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, loop, x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl..", ("prefix*", "FOR", "(bound|post)", "(bound|post)", "(bound|post)", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, loop, x[0]).AppendPrefix(*attr), *x[1:])),
 	
 	# else_ctrl..: prefix* ELSE x..
 	#            | stmt?
@@ -107,13 +107,13 @@ SYNTAX_RULES = [
 	("else_ctrl..", ("stmt",), lambda x: (NodeCompound(), x)),
 	("else_ctrl..", (), lambda: (NodeCompound(),)),
 	
-	# ctrl_else: prefix* (IF|WHILE) (fn|cmpd|post) (fn|cmpd|post) else?
-	#          | prefix* FOR (fn|cmpd|post) (fn|cmpd|post) (fn|cmpd|post) else?
-	("ctrl_else", ("prefix*", "IF", "(fn|cmpd|post)", "(fn|cmpd|post)", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, expr, otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "WHILE", "(fn|cmpd|post)", "(fn|cmpd|post)", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, loop, otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "FOR", "(fn|cmpd|post)", "(fn|cmpd|post)", "(fn|cmpd|post)", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, loop, otherwise).AppendPrefix(*attr)),
+	# ctrl_else: prefix* (IF|WHILE) (bound|post) (bound|post) else?
+	#          | prefix* FOR (bound|post) (bound|post) (bound|post) else?
+	("ctrl_else", ("prefix*", "IF", "(bound|post)", "(bound|post)", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, expr, otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "WHILE", "(bound|post)", "(bound|post)", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, loop, otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "FOR", "(bound|post)", "(bound|post)", "(bound|post)", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, loop, otherwise).AppendPrefix(*attr)),
 	("else?", ("prefix*", "ELSE", "ctrl_else"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "(fn|cmpd|post)"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "(bound|post)"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
 	("else?", (), lambda: NodeCompound()),
 	
 	# assign: expr = assign
@@ -196,35 +196,29 @@ SYNTAX_RULES = [
 	("(*|/|%)", ("%",), lambda MOD: MOD),
 	
 	# unary: (+|-|!) unary
-	#      | (app|fn|cmpd|prefixed)
+	#      | (app|bound|prefixed)
 	("unary", ("(+|-|!)", "unary"), lambda OP, val: OP(val)),
 	("unary", ("app",), lambda x: x),
-	("unary", ("fn",), lambda x: x),
-	("unary", ("cmpd",), lambda x: x),
+	("unary", ("bound",), lambda x: x),
 	("unary", ("prefixed",), lambda x: x),
 	("(+|-|!)", ("+",), lambda PLUS: lambda node: NodeUnaryOp(PLUS, node)),
 	("(+|-|!)", ("-",), lambda MINUS: lambda node: NodeUnaryOp(MINUS, node)),
 	("(+|-|!)", ("!",), lambda NOT: lambda node: NodeUnaryOp(NOT, node)),
 	
-	# app: post+ (fn|cmpd|prefixed)?
-	("app", ("post+", "(fn|cmpd|prefixed)?"), lambda func, arg: NodeApply(make_applied(*func), arg) if arg else make_applied(*func)),
-	("(fn|cmpd|prefixed)?", ("fn",), lambda x: x),
-	("(fn|cmpd|prefixed)?", ("cmpd",), lambda x: x),
-	("(fn|cmpd|prefixed)?", ("prefixed",), lambda x: x),
-	("(fn|cmpd|prefixed)?", (), lambda: None),
+	# app: post+ (bound|prefixed)?
+	("app", ("post+", "(bound|prefixed)?"), lambda func, arg: NodeApply(make_applied(*func), arg) if arg else make_applied(*func)),
+	("(bound|prefixed)?", ("bound",), lambda x: x),
+	("(bound|prefixed)?", ("prefixed",), lambda x: x),
+	("(bound|prefixed)?", (), lambda: None),
 	
-	# tmplt: prefix* TMPLT (fn|cmpd|post) (fn|cmpd|post)
-	("tmplt", ("prefix*", "TMPLT", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
-	
-	# fn: prefix* FN post (fn|cmpd|post)
-	("fn", ("prefix*", "FN", "(fn|cmpd|post)", "(fn|cmpd|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
-	("(fn|cmpd|post)", ("fn",), lambda x: x),
-	("(fn|cmpd|post)", ("tmplt",), lambda x: x),
-	("(fn|cmpd|post)", ("cmpd",), lambda x: x),
-	("(fn|cmpd|post)", ("post",), lambda x: make_applied(x)),
-	
-	# cmpd: prefix* { stmt_lst }
-	("cmpd", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
+	# It is named "bound" even if its length can go infinite, as it has a clear terminator that indicates the end of this element.
+	# bound: prefix* (TMPLT|FN) post (bound|post)
+	#          | prefix* { stmt_lst }
+	("bound", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
+	("bound", ("prefix*", "FN", "(bound|post)", "(bound|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
+	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
+	("(bound|post)", ("bound",), lambda x: x),
+	("(bound|post)", ("post",), lambda x: make_applied(x)),
 	
 	# prefixed: prefix* @ post+ post
 	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: make_applied(x).AppendPrefix(*attr_lst, make_applied(*attr))),
