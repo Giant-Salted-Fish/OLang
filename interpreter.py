@@ -1,27 +1,24 @@
-from typing import TypeVar, Callable, Any
-
-
-T = TypeVar("T")
+from typing import Callable, Any
 
 
 class EvaluationContext:
-	def __init__(self, parent: "EvaluationContext" = None):
+	def __init__(self, parent: "EvaluationContext | None" = None):
 		self._parent = parent
 		self._symbol_table = {}
 		self._stack = []
 	
 	def Lookup(self, symbol: str) -> Any:
-		return self._symbol_table.get(symbol) or self._parent.Lookup(symbol)
+		return self._symbol_table.get(symbol) or self._parent.Lookup(symbol)  # type: ignore
 	
-	def Push(self, symbol: str, value: T, destructor: Callable[[T], None]):
+	def Push[T](self, symbol: str, value: T, destructor: Callable[[T], None]):
 		self._stack.append(symbol)
 		self._symbol_table[symbol] = (value, destructor)
 	
-	def Pop(self, symbol: str) -> tuple[T, Callable[[T], None]]:
+	def Pop[T](self, symbol: str) -> tuple[T, Callable[[T], None]]:
 		self._stack.remove(symbol)
 		return self._symbol_table.pop(symbol)
 	
-	def Update(self, symbol: str, value: T, destructor: Callable[[T], None]):
+	def Update[T](self, symbol: str, value: T, destructor: Callable[[T], None]):
 		self.Release(symbol)
 		self.Push(symbol, value, destructor)
 	

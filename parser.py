@@ -1,8 +1,5 @@
 from scaner import Token
-from typing import Iterable, Iterator, Collection, TypeVar, Callable, NamedTuple, Sequence, Any
-
-
-T = TypeVar("T")
+from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence, Any
 
 
 class Production[T](NamedTuple):

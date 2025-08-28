@@ -1,8 +1,5 @@
-from typing import Iterable, Sequence, Iterator, TypeVar, Callable
+from typing import Iterable, Sequence, Iterator, Callable
 import re
-
-
-T = TypeVar("T")
 
 
 class Token[T]:

@@ -1,9 +1,6 @@
-from typing import Self, Sequence, Callable, TypeVar, Any
+from typing import Self, Sequence, Callable, Any
 from scaner import Token
 from interpreter import EvaluationContext
-
-
-T = TypeVar("T")
 
 
 class Node:
@@ -21,7 +18,7 @@ class Node:
 	def Eval(self, ctx: EvaluationContext) -> Any:
 		raise NotImplementedError
 	
-	def Unwind(self, val: T, put: Callable[[str, T, Callable[[T], None]], None], ctx: EvaluationContext) -> None:
+	def Unwind[T](self, val: T, put: Callable[[str, T, Callable[[T], None]], None], ctx: EvaluationContext) -> None:
 		raise NotImplementedError
 	
 	def Invoke(self, arg, ctx: EvaluationContext) -> Any:
