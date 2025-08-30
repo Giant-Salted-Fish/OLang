@@ -217,6 +217,7 @@ SYNTAX_RULES = [
 	("bound", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "(bound|post)", "(bound|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
+	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, x, RPR: NodeStruct(*x).AppendPrefix(*attr)),
 	("(bound|post)", ("bound",), lambda x: x),
 	("(bound|post)", ("post",), lambda x: make_applied(x)),
 	
@@ -232,8 +233,8 @@ SYNTAX_RULES = [
 	("postfix*", ("postfix*", "postfix"), lambda head, post: lambda node: post(head(node))),
 	("postfix*", (), lambda: lambda x: x),
 	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),
-	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),  # TODO: Stmt
-	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),  # TODO: Stmt
+	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
+	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("#",), lambda HASH: lambda node: node),
 	
 	# prim: (INT|LABEL|STR)
@@ -253,7 +254,6 @@ SYNTAX_RULES = [
 	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "ctrl_else", ")"), lambda LPR, x, RPR: x),
 	("prim", (".(", "field_lst", ")"), lambda LPR, x, RPR: NodeStruct(*x)),
-	("prim", (".{", "stmt_lst", "}"), lambda LPR, x, RPR: NodeStruct(*x)),
 	
 	# field_lst: field_set (;|,) field_lst
 	#          | field_set?
