@@ -148,20 +148,17 @@ class NodeCompound(Node):
 
 
 class NodeDecl(Node):
-	def __init__(self, var: Node, expr: Node):
-		self.var = var
-		self.expr = expr
+	def __init__(self, label: Node):
+		self.label = label
 	
 	def __repr__(self):
-		return self._GenStr(f"{self.var}, {self.expr}")
+		return self._GenStr(f"{self.label}")
 	
 	def Eval(self, ctx):
-		val = self.expr.Eval(ctx)
-		self.var.Unwind(val, ctx.Push, ctx)
-		return ()
+		pass
 	
 	def GenCode(self):
-		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
+		lines = self.label.GenCode()
 		lines = [f"let {lines[0]}", *lines[1:]]
 		return self._AppendAttrText(lines)
 
@@ -321,7 +318,7 @@ class NodeStruct(Node):
 		elements = [field.GenCode() for field in self.fields]
 		if all(len(lines) == 1 for lines in elements):
 			inner = "; ".join(lines[0] for lines in elements)
-			lines = [f"({inner})"]
+			lines = [f".({inner})"]
 		else:
 			lines = [
 				".(",

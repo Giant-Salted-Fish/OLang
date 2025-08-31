@@ -70,16 +70,17 @@ SYNTAX_RULES = [
 	("stmt_lst", (), lambda: ()),
 	
 	# stmt: assign
-	#     | prefix* LET expr = assign
+	#     | prefix* LET expr (= assign)?
 	#     | prefix* RETURN assign
 	("stmt", ("assign",), lambda x: x),
-	("stmt", ("prefix*", "LET", "expr", "=", "assign"), lambda attr, LET, var, EQ, expr: NodeDecl(var, expr).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "LET", "expr", "=", "assign"), lambda attr, LET, var, EQ, expr: NodeAssign(NodeDecl(var).AppendPrefix(*attr), expr)),
+	("stmt", ("prefix*", "LET", "expr"), lambda attr, LET, var: NodeDecl(var).AppendPrefix(*attr)),
 	("stmt", ("prefix*", "RETURN", "assign"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* (TEMPL|FN) (bound|post) (bound|post) (bound|post)
-	("decl", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, label, param, body: NodeDecl(label, NodeTmplt(param, body)).AppendPrefix(*attr)),
-	("decl", ("prefix*", "FN", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, FN, label, param, body: NodeDecl(label, NodeFunc(param, body)).AppendPrefix(*attr)),
+	("decl", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTmplt(param, body).AppendPrefix(*attr))),
+	("decl", ("prefix*", "FN", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, FN, label, param, body: NodeAssign(NodeDecl(label), NodeFunc(param, body).AppendPrefix(*attr))),
 	
 	# ctrl_else..: prefix* (IF|WHILE) (bound|post) (bound|post) else..
 	#            | prefix* FOR (bound|post) (bound|post) (bound|post) else..
@@ -260,8 +261,10 @@ SYNTAX_RULES = [
 	("field_lst", ("field_set", "(;|,)", "field_lst"), lambda x, SEMI, lst: (x, *lst)),
 	("field_lst", ("field_set",), lambda x: (x,)),
 	("field_lst", (), lambda: ()),
-	("field_set", ("prefix*", "LET", "expr", "=", "suffixed"), lambda attr, LET, label, EQ, expr: NodeDecl(label, expr).AppendPrefix(*attr)),
-	("field_set", ("expr", "=", "suffixed"), lambda label, EQ, expr: NodeDecl(label, expr)),
+	("field_set", ("prefix*", "LET", "suffixed", "=", "suffixed"), lambda attr, LET, label, EQ, expr: NodeAssign(NodeDecl(label).AppendPrefix(*attr), expr)),
+	("field_set", ("prefix*", "LET", "suffixed"), lambda attr, LET, label: NodeDecl(label).AppendPrefix(*attr)),
+	("field_set", ("suffixed", "=", "suffixed"), lambda label, EQ, expr: NodeAssign(NodeDecl(label), expr)),
+	("field_set", ("suffixed",), lambda x: x),
 	("(;|,)", (";",), lambda SEMI: SEMI),
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
