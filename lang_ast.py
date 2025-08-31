@@ -33,12 +33,12 @@ class Node:
 		return f"{self.__class__.__name__}({fields}{pre}{suf})"
 	
 	def _AppendAttrText(self, lines: list[str]) -> list[str]:
-		def gen_attr_text(prefix: str, attr: list[Sequence[str]]):
+		def gen_attr_text(prefix: str, attr: list[list[str]]):
 			assert all(len(lines) > 0 for lines in attr)
 			if attr and all(len(lines) == 1 for lines in attr):
 				return [" ".join(f"{prefix}{lines[0]}" for lines in attr)]
 			else:
-				return [line for lines in attr for line in (f"{prefix}{lines[0]}", *lines[1:])]
+				return [line for lines in attr for line in self._PrefixText(prefix, lines)]
 		text = gen_attr_text("@", [node.GenCode() for node in self.prefix])
 		if len(text) == 1:
 			text = self._JoinText(" ", text, lines)
@@ -51,6 +51,36 @@ class Node:
 		else:
 			text += suffix
 		return text
+	
+	@staticmethod
+	def _PrefixText(pre: str, text: list[str]) -> list[str]:
+		if len(text) == 0:
+			return [pre]
+		else:
+			return [f"{pre}{text[0]}", *text[1:]]
+	
+	@staticmethod
+	def _SuffixText(suf: str, text: list[str]) -> list[str]:
+		if len(text) == 0:
+			return [suf]
+		else:
+			return [*text[:-1], f"{text[-1]}{suf}"]
+	
+	@staticmethod
+	def _EncloseText(left: str, right: str, text: list[str], force_new_line=False) -> list[str]:
+		def block():
+			return [left, *(f"\t{line}" for line in text), right]
+		
+		if force_new_line:
+			return block()
+		
+		match len(text):
+			case 0:
+				return [left + right]
+			case 1:
+				return [left + text[0] + right]
+			case _:
+				return block()
 	
 	@staticmethod
 	def _JoinText(joiner: str, *text: list[str]) -> list[str]:
@@ -137,14 +167,9 @@ class NodeCompound(Node):
 		return val
 	
 	def GenCode(self):
-		def process(n):
-			lines = n.GenCode()
-			return [*lines[:-1], f"{lines[-1]};"]
-		return self._AppendAttrText([
-			"{",
-			*(f"\t{line}" for node in self.nodes for line in process(node)),
-			"}",
-		])
+		lines = [line for node in self.nodes for line in self._SuffixText(";", node.GenCode())]
+		lines = self._EncloseText("{", "}", lines, force_new_line=True)
+		return self._AppendAttrText(lines)
 
 
 class NodeDecl(Node):
@@ -159,7 +184,7 @@ class NodeDecl(Node):
 	
 	def GenCode(self):
 		lines = self.label.GenCode()
-		lines = [f"let {lines[0]}", *lines[1:]]
+		lines = self._PrefixText("let ", lines)
 		return self._AppendAttrText(lines)
 
 
@@ -260,16 +285,12 @@ class NodeUnion(Node):
 	def GenCode(self):
 		elements = [node.GenCode() for node in self.nodes]
 		if all(len(lines) == 1 for lines in elements):
-			inner = "|".join(lines[0] for lines in elements)
+			lines = ["|".join(lines[0] for lines in elements)]
 			if len(elements) == 1:
-				inner += "|"
-			lines = [f"({inner})"]
+				lines[0] += "|"
 		else:
-			lines = [
-				"(",
-				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]}|")),
-				")",
-			]
+			lines = [f"\t{line}" for lines in elements for line in self._SuffixText("|", lines)]
+		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(lines)
 
 
@@ -294,16 +315,12 @@ class NodeTuple(Node):
 	def GenCode(self):
 		elements = [node.GenCode() for node in self.nodes]
 		if all(len(lines) == 1 for lines in elements):
-			inner = ", ".join(lines[0] for lines in elements)
+			lines = [", ".join(lines[0] for lines in elements)]
 			if len(elements) == 1:
-				inner += ","
-			lines = [f"({inner})"]
+				lines[0] += ","
 		else:
-			lines = [
-				"(",
-				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]},")),
-				")",
-			]
+			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(",", lines)]
+		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(lines)
 
 
@@ -317,14 +334,10 @@ class NodeStruct(Node):
 	def GenCode(self):
 		elements = [field.GenCode() for field in self.fields]
 		if all(len(lines) == 1 for lines in elements):
-			inner = "; ".join(lines[0] for lines in elements)
-			lines = [f".({inner})"]
+			lines = ["; ".join(lines[0] for lines in elements)]
 		else:
-			lines = [
-				".(",
-				*(f"\t{line}" for lines in elements for line in (*lines[:-1], f"{lines[-1]};")),
-				")"
-			]
+			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(";", lines)]
+		lines = self._EncloseText(".{", "}", lines)
 		return self._AppendAttrText(lines)
 
 
@@ -372,8 +385,7 @@ class NodeBinaryOp(Node):
 	
 	def GenCode(self):
 		lines = self._JoinText(f" {self.op.GetValue()} ", self.left.GenCode(), self.right.GenCode())
-		lines = [f"({lines[0]}", *lines[1:]]
-		lines[-1] += ")"
+		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(lines)
 
 
@@ -394,8 +406,6 @@ class NodeUnaryOp(Node):
 				return -val
 			case "!":
 				return not val
-			case "~":
-				return ~val
 			case _:
 				raise ValueError(f"Unknown operator: {self.op}")
 	
@@ -438,15 +448,7 @@ class NodeIndex(Node):
 	def GenCode(self):
 		val = self.obj.GenCode()
 		index = self.index.GenCode()
-		if len(index) == 1:
-			lines = [*val[:-1], f"{val[-1]}[{index[0]}]"]
-		else:
-			lines = [
-				*val[:-1],
-				f"{val[-1]}[",
-				*(f"\t{line}," for line in index),
-				"]",
-			]
+		lines = self._JoinText("", val, self._EncloseText("[", "]", index))
 		return self._AppendAttrText(lines)
 
 
@@ -529,4 +531,30 @@ class NodeForElse(Node):
 		loop_body = self.loop_body.GenCode()
 		else_branch = self.else_branch.GenCode()
 		lines = self._JoinText(" ", ["for"], iterable, var, loop_body, ["else"], else_branch)
+		return self._AppendAttrText(lines)
+
+
+class NodeNamedTuple(Node):
+	def __init__(self, body: Node):
+		self.body = body
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.body}")
+	
+	def GenCode(self):
+		lines = self.body.GenCode()
+		lines = self._PrefixText("tuple ", lines)
+		return self._AppendAttrText(lines)
+
+
+class NodeNamedStruct(Node):
+	def __init__(self, body: Node):
+		self.body = body
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.body}")
+	
+	def GenCode(self):
+		lines = self.body.GenCode()
+		lines = self._PrefixText("struct ", lines)
 		return self._AppendAttrText(lines)

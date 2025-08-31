@@ -4,7 +4,9 @@ from lang_ast import *
 
 TOKEN_TYPES = [
 	("TMPLT", r"template"),
+	("STRUCT", r"struct"),
 	("RETURN", r"return"),
+	("TUPLE", r"tuple"),
 	("WHILE", r"while"),
 	("ELSE", r"else"),
 	("LET", r"let"),
@@ -79,8 +81,11 @@ SYNTAX_RULES = [
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* (TEMPL|FN) (bound|post) (bound|post) (bound|post)
+	# decl: prefix* (STRUCT|TUPLE) (bound|post) (bound|post)
 	("decl", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTmplt(param, body).AppendPrefix(*attr))),
 	("decl", ("prefix*", "FN", "(bound|post)", "(bound|post)", "(bound|post)"), lambda attr, FN, label, param, body: NodeAssign(NodeDecl(label), NodeFunc(param, body).AppendPrefix(*attr))),
+	("decl", ("prefix*", "STRUCT", "(bound|post)", "(bound|post)"), lambda attr, STRUCT, label, body: NodeAssign(NodeDecl(label), NodeNamedStruct(body).AppendPrefix(*attr))),
+	("decl", ("prefix*", "TUPLE", "(bound|post)", "(bound|post)"), lambda attr, TUPLE, label, body: NodeAssign(NodeDecl(label), NodeNamedTuple(body).AppendPrefix(*attr))),
 	
 	# ctrl_else..: prefix* (IF|WHILE) (bound|post) (bound|post) else..
 	#            | prefix* FOR (bound|post) (bound|post) (bound|post) else..
@@ -213,10 +218,13 @@ SYNTAX_RULES = [
 	("(bound|prefixed)?", (), lambda: None),
 	
 	# It is named "bound" even if its length can go infinite, as it has a clear terminator that indicates the end of this element.
-	# bound: prefix* (TMPLT|FN) post (bound|post)
-	#          | prefix* { stmt_lst }
+	# bound: prefix* (TMPLT|FN) (bound|post) (bound|post)
+	#      | prefix* (STRUCT|FN) (bound|post)
+	#      | prefix* { stmt_lst }
 	("bound", ("prefix*", "TMPLT", "(bound|post)", "(bound|post)"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "(bound|post)", "(bound|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
+	("bound", ("prefix*", "STRUCT", "(bound|post)"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
+	("bound", ("prefix*", "TUPLE", "(bound|post)"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
 	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, x, RPR: NodeStruct(*x).AppendPrefix(*attr)),
 	("(bound|post)", ("bound",), lambda x: x),
@@ -269,6 +277,7 @@ SYNTAX_RULES = [
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
 SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
+
 
 def make_applied(
 	head: tuple[Node, Callable[[Node], Node]],

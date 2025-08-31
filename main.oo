@@ -2,6 +2,13 @@ let MetaData = @Require("com.lang.MetaData");
 let Frequency = @Require("com.lang.MetaData.Frequency");
 
 
+struct data .{
+    let a = int;
+    let b = bool;
+    let c = str
+}
+
+
 fn test(a: I32, b) {
     // This is a test function
     let func = (a: I32, b: I32) -> a + b;
