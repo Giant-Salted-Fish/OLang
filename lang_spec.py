@@ -99,6 +99,7 @@ SYNTAX_RULES = [
 	("else..", ("prefix*", "ELSE", "(bound|post)"), lambda attr, ELSE, x: (x.AppendPrefix(*attr),)),
 	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
 	("else..", ("decl",), lambda x: (NodeCompound(), x)),
+	("else..", ("ctrl_else..",), lambda x: (NodeCompound(), *x)),
 	("else..", (";",), lambda SEMI: (NodeCompound(),)),
 	
 	# ctrl..: prefix* (IF|WHILE) (bound|post) (bound|post) else_x..
@@ -244,6 +245,7 @@ SYNTAX_RULES = [
 	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),
 	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
+	("postfix", ("[", "ctrl_else", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("#",), lambda HASH: lambda node: node),
 	
 	# prim: (INT|LABEL|STR)
