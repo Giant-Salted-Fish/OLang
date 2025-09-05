@@ -1,10 +1,11 @@
 from scaner import Scaner
 from parser import Syntax
+from interpreter import EvaluationContext
 import lang_spec
 
 
 if __name__ == "__main__":
-	with open("main.oo", "r") as f:
+	with open("test.olang", "r") as f:
 		source_code = f.read()
 	
 	scaner = Scaner.Build(lang_spec.TOKEN_TYPES)
@@ -16,3 +17,9 @@ if __name__ == "__main__":
 	print(parser)
 	ast2 = parser.Parse(scaner.Tokenize(source_code))
 	print(ast2)
+	
+	mod = EvaluationContext()
+	_, _ = ast2.Eval(mod)
+	func = mod.Lookup("test")[0]
+	result, _ = func.Invoke((5, 7), EvaluationContext())
+	print(f"{result = }")

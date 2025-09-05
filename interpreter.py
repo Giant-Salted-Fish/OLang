@@ -1,4 +1,5 @@
 from typing import Callable, Any
+from enum import Enum, auto, unique
 
 
 class EvaluationContext:
@@ -36,3 +37,11 @@ class EvaluationContext:
 			destructor(value)
 		self._stack.clear()
 		return self._parent
+
+
+@unique
+class ControlState(Enum):
+	PASS = auto()
+	BREAK_LOOP = auto()
+	CONT_LOOP = auto()
+	RETURN = auto()

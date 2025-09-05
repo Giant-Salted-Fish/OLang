@@ -1,6 +1,6 @@
-from typing import Self, Sequence, Callable, Any
+from typing import Self, Any
 from scaner import Token
-from interpreter import EvaluationContext
+from interpreter import EvaluationContext, ControlState
 
 
 class Node:
@@ -15,10 +15,13 @@ class Node:
 		self.suffix = self.suffix + attr
 		return self
 	
-	def Eval(self, ctx: EvaluationContext) -> Any:
+	def Eval(self, ctx: EvaluationContext) -> tuple[Any, ControlState]:
 		raise NotImplementedError
 	
-	def Unwind[T](self, val: T, put: Callable[[str, T, Callable[[T], None]], None], ctx: EvaluationContext) -> None:
+	def Decl(self, ctx: EvaluationContext) -> None:
+		raise NotImplementedError
+	
+	def Unwind(self, val: Any, ctx: EvaluationContext) -> None:
 		raise NotImplementedError
 	
 	def Invoke(self, arg, ctx: EvaluationContext) -> Any:
@@ -110,10 +113,13 @@ class NodeInt(Node):
 		return self._GenStr(self.token.GetValue())
 	
 	def Eval(self, ctx):
-		return int(self.token.GetValue())
+		return int(self.token.GetValue()), ControlState.PASS
 	
-	def Unwind(self, val, put, ctx):
+	def Decl(self, ctx):
 		pass
+	
+	def Unwind(self, val, ctx):
+		assert isinstance(val, int) and val == int(self.token.GetValue())
 	
 	def GenCode(self):
 		return self._AppendAttrText([self.token.GetValue()])
@@ -127,10 +133,13 @@ class NodeLabel(Node):
 		return self._GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
-		return ctx.Lookup(self.token.GetValue())[0]
+		return ctx.Lookup(self.token.GetValue())[0], ControlState.PASS
 	
-	def Unwind(self, val, put, ctx):
-		put(self.token.GetValue(), val, lambda _: None)
+	def Decl(self, ctx):
+		ctx.Push(self.token.GetValue(), None, lambda _: None)
+	
+	def Unwind(self, val, ctx):
+		ctx.Update(self.token.GetValue(), val, lambda _: None)
 	
 	def GenCode(self):
 		return self._AppendAttrText([self.token.GetValue()])
@@ -144,10 +153,10 @@ class NodeStr(Node):
 		return self._GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
-		return self.token.GetValue()
+		return self.token.GetValue(), ControlState.PASS
 	
-	def Unwind(self, val, put, ctx):
-		pass
+	def Unwind(self, val, ctx):
+		assert isinstance(val, str) and val == self.token.GetValue()
 	
 	def GenCode(self):
 		return self._AppendAttrText([self.token.GetValue()])
@@ -161,10 +170,12 @@ class NodeCompound(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Eval(self, ctx):
-		val = ()
+		val, ctrl = (), ControlState.PASS
 		for node in self.nodes:
-			val = node.Eval(ctx)
-		return val
+			val, ctrl = node.Eval(ctx)
+			if ctrl is not ControlState.PASS:
+				break
+		return val, ctrl
 	
 	def GenCode(self):
 		lines = [line for node in self.nodes for line in self._SuffixText(";", node.GenCode())]
@@ -173,17 +184,22 @@ class NodeCompound(Node):
 
 
 class NodeDecl(Node):
-	def __init__(self, label: Node):
-		self.label = label
+	def __init__(self, var: Node):
+		self.var = var
 	
 	def __repr__(self):
-		return self._GenStr(f"{self.label}")
+		return self._GenStr(f"{self.var}")
 	
 	def Eval(self, ctx):
-		pass
+		self.var.Decl(ctx)
+		return None, ControlState.PASS
+	
+	def Unwind(self, val, ctx):
+		self.var.Decl(ctx)
+		self.var.Unwind(val, ctx)
 	
 	def GenCode(self):
-		lines = self.label.GenCode()
+		lines = self.var.GenCode()
 		lines = self._PrefixText("let ", lines)
 		return self._AppendAttrText(lines)
 
@@ -197,9 +213,12 @@ class NodeAssign(Node):
 		return self._GenStr(f"{self.var}, {self.expr}")
 	
 	def Eval(self, ctx):
-		val = self.expr.Eval(ctx)
-		self.var.Unwind(val, ctx.Update, ctx)
-		return val
+		val, ctrl = self.expr.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return val, ctrl
+		
+		self.var.Unwind(val, ctx)
+		return val, ControlState.PASS
 	
 	def GenCode(self):
 		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
@@ -215,13 +234,14 @@ class NodeFunc(Node):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	def Eval(self, ctx):
-		return self
+		return self, ControlState.PASS
 	
 	def Invoke(self, arg, ctx):
-		new_ctx = ctx.PushScope()
-		self.param.Unwind(arg, new_ctx.Push, new_ctx)
-		ret_val = self.body.Eval(new_ctx)
-		new_ctx.PopScope()
+		scope = ctx.PushScope()
+		self.param.Decl(scope)
+		self.param.Unwind(arg, scope)
+		ret_val = self.body.Eval(scope)
+		scope.PopScope()
 		return ret_val
 	
 	def GenCode(self):
@@ -239,13 +259,14 @@ class NodeTmplt(Node):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	def Eval(self, ctx):
-		return self
+		return self, ControlState.PASS
 	
 	def Invoke(self, arg, ctx):
-		new_ctx = ctx.PushScope()
-		self.param.Unwind(arg, new_ctx.Push, new_ctx)
-		ret_val = self.body.Eval(new_ctx)
-		new_ctx.PopScope()
+		scope = ctx.PushScope()
+		self.param.Decl(scope)
+		self.param.Unwind(arg, scope)
+		ret_val = self.body.Eval(scope)
+		scope.PopScope()
 		return ret_val
 	
 	def GenCode(self):
@@ -263,9 +284,15 @@ class NodeApply(Node):
 		return self._GenStr(f"{self.func}, {self.arg}")
 	
 	def Eval(self, ctx):
-		func = self.func.Eval(ctx)
-		arg = self.arg.Eval(ctx)
-		return func.Invoke(arg, ctx)
+		func, ctrl = self.func.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return func, ctrl
+		
+		arg, ctrl = self.arg.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return arg, ctrl
+		
+		return func.Invoke(arg, ctx), ControlState.PASS
 	
 	def GenCode(self):
 		lines = self._JoinText(" ", self.func.GenCode(), self.arg.GenCode())
@@ -302,15 +329,26 @@ class NodeTuple(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Eval(self, ctx):
-		return tuple(node.Eval(ctx) for node in self.nodes)
+		nodes = []
+		for node in self.nodes:
+			val, ctrl = node.Eval(ctx)
+			if ctrl is not ControlState.PASS:
+				return val, ctrl
+			nodes.append(val)
+		
+		return tuple(nodes), ControlState.PASS
 	
-	def Unwind(self, val, put, ctx):
+	def Decl(self, ctx):
+		for node in self.nodes:
+			node.Decl(ctx)
+	
+	def Unwind(self, val, ctx):
 		if not isinstance(val, tuple):
 			raise ValueError(f"Expected tuple, got {val}")
 		
 		assert len(val) == len(self.nodes)
 		for i, node in enumerate(self.nodes):
-			node.Unwind(val[i], put, ctx)
+			node.Unwind(val[i], ctx)
 	
 	def GenCode(self):
 		elements = [node.GenCode() for node in self.nodes]
@@ -330,6 +368,10 @@ class NodeStruct(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.fields)[1:-2])
+	
+	def Eval(self, ctx):
+		# FIXME
+		return super().Eval(ctx)
 	
 	def GenCode(self):
 		elements = [field.GenCode() for field in self.fields]
@@ -351,8 +393,17 @@ class NodeBinaryOp(Node):
 		return self._GenStr(f"{self.op.GetValue()}, {self.left}, {self.right}")
 	
 	def Eval(self, ctx):
-		x = self.left.Eval(ctx)
-		y = self.right.Eval(ctx)
+		x, ctrl = self.left.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return x, ctrl
+		
+		y, ctrl = self.right.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return y, ctrl
+		
+		return self._Execute(x, y), ControlState.PASS
+	
+	def _Execute(self, x, y):
 		match self.op.GetValue():
 			case "+":
 				return x + y
@@ -398,7 +449,12 @@ class NodeUnaryOp(Node):
 		return self._GenStr(f"{self.op}, {self.node}")
 	
 	def Eval(self, ctx):
-		val = self.node.Eval(ctx)
+		val, ctrl = self.node.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return val, ctrl
+		return self._Execute(val), ControlState.PASS
+	
+	def _Execute(self, val):
 		match self.op.GetValue():
 			case "+":
 				return val
@@ -424,8 +480,12 @@ class NodeAccess(Node):
 		return self._GenStr(f"{self.obj}, {self.field}")
 	
 	def Eval(self, ctx):
+		obj, ctrl = self.obj.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return obj, ctrl
+		
 		assert isinstance(self.field, NodeLabel)
-		return getattr(self.obj.Eval(ctx), self.field.token.GetValue())
+		return getattr(obj, self.field.token.GetValue())
 	
 	def GenCode(self):
 		obj = self.obj.GenCode()
@@ -443,7 +503,15 @@ class NodeIndex(Node):
 		return self._GenStr(f"{self.obj}, {self.index}")
 	
 	def Eval(self, ctx):
-		return self.obj.Eval(ctx)[self.index.Eval(ctx)]
+		obj, ctrl = self.obj.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return obj, ctrl
+		
+		idx, ctrl = self.index.Eval(ctx)
+		if ctrl is not ControlState.PASS:
+			return idx, ctrl
+		
+		return obj[idx], ControlState.PASS
 	
 	def GenCode(self):
 		val = self.obj.GenCode()
@@ -460,8 +528,8 @@ class NodeReturn(Node):
 		return self._GenStr(f"{self.expr}")
 	
 	def Eval(self, ctx):
-		# TODO: Handle control flow transfer
-		return super().Eval(ctx)
+		val, ctrl = self.expr.Eval(ctx)
+		return val, ControlState.RETURN if ctrl is ControlState.PASS else ctrl
 	
 	def GenCode(self):
 		expr = self.expr.GenCode()
@@ -479,7 +547,10 @@ class NodeIfElse(Node):
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
 	def Eval(self, ctx):
-		if self.cond.Eval(ctx):
+		cond, ctrl = self.cond.Eval(ctx)
+		assert ctrl is ControlState.PASS
+		
+		if cond:
 			return self.true_branch.Eval(ctx)
 		else:
 			return self.false_branch.Eval(ctx)
@@ -502,7 +573,16 @@ class NodeWhileElse(Node):
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
 	
 	def Eval(self, ctx):
-		pass
+		while True:
+			cond, ctrl = self.cond.Eval(ctx)
+			assert ctrl is ControlState.PASS
+			
+			if not cond:
+				return self.else_branch.Eval(ctx)
+			
+			val, ctrl = self.loop_body.Eval(ctx)
+			if ctrl not in (ControlState.PASS, ControlState.CONT_LOOP):
+				return val, ctrl
 	
 	def GenCode(self):
 		cond = self.cond.GenCode()
@@ -523,7 +603,8 @@ class NodeForElse(Node):
 		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
 	
 	def Eval(self, ctx):
-		pass
+		# FIXME
+		return super().Eval(ctx)
 	
 	def GenCode(self):
 		iterable = self.iterable.GenCode()
@@ -541,6 +622,12 @@ class NodeNamedTuple(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
 	
+	def Eval(self, ctx):
+		return self, ControlState.PASS
+	
+	def Invoke(self, arg, ctx):
+		return arg, ControlState.PASS
+	
 	def GenCode(self):
 		lines = self.body.GenCode()
 		lines = self._PrefixText("tuple ", lines)
@@ -553,6 +640,12 @@ class NodeNamedStruct(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
+	
+	def Eval(self, ctx):
+		return self, ControlState.PASS
+	
+	def Invoke(self, arg, ctx):
+		return arg, ControlState.PASS
 	
 	def GenCode(self):
 		lines = self.body.GenCode()

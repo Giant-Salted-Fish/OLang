@@ -1,5 +1,10 @@
 from parser import Production
-from lang_ast import *
+from lang_ast import (
+	Node, NodeInt, NodeLabel, NodeStr, NodeCompound, NodeDecl, NodeAssign, NodeFunc, NodeTmplt,
+	NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp, NodeAccess, NodeIndex,
+	NodeReturn, NodeIfElse, NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
+)
+from typing import Callable
 
 
 TOKEN_TYPES = [
