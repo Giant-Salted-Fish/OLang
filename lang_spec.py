@@ -230,7 +230,7 @@ SYNTAX_RULES = [
 	("bound", ("prefix*", "FN", "(bound|post)", "(bound|post)"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "(bound|post)"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "(bound|post)"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
-	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
+	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: (NodeTuple() if len(lst) == 0 else lst[0] if len(lst) == 1 else NodeCompound(*lst)).AppendPrefix(*attr)),
 	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, x, RPR: NodeStruct(*x).AppendPrefix(*attr)),
 	("(bound|post)", ("bound",), lambda x: x),
 	("(bound|post)", ("post",), lambda x: make_applied(x)),

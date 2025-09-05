@@ -5,7 +5,7 @@ import lang_spec
 
 
 if __name__ == "__main__":
-	with open("test.olang", "r") as f:
+	with open("test.olang", "r", encoding="utf-8") as f:
 		source_code = f.read()
 	
 	scaner = Scaner.Build(lang_spec.TOKEN_TYPES)
