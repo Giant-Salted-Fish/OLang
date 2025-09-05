@@ -77,12 +77,9 @@ SYNTAX_RULES = [
 	("stmt_lst", (), lambda: ()),
 	
 	# stmt: assign
-	#     | prefix* LET expr (= assign)?
 	#     | prefix* RETURN assign
 	("stmt", ("assign",), lambda x: x),
-	("stmt", ("prefix*", "LET", "expr", "=", "assign"), lambda attr, LET, var, EQ, expr: NodeAssign(NodeDecl(var).AppendPrefix(*attr), expr)),
-	("stmt", ("prefix*", "LET", "expr"), lambda attr, LET, var: NodeDecl(var).AppendPrefix(*attr)),
-	("stmt", ("prefix*", "RETURN", "assign"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "RETURN", "expr"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* (TEMPL|FN) (bound|post) (bound|post) (bound|post)
@@ -128,10 +125,12 @@ SYNTAX_RULES = [
 	("else?", ("prefix*", "ELSE", "(bound|post)"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
 	("else?", (), lambda: NodeCompound()),
 	
-	# assign: expr = assign
-	#       | expr
-	("assign", ("expr", "=", "assign"), lambda var, EQ, expr: NodeAssign(var, expr)),
-	("assign", ("expr",), lambda x: x),
+	# assign: (prefix* LET)? expr = assign
+	#       | (prefix* LET)? expr
+	("assign", ("(expr|let)", "=", "assign"), lambda var, EQ, expr: NodeAssign(var, expr)),
+	("assign", ("(expr|let)",), lambda x: x),
+	("(expr|let)", ("expr",), lambda x: x),
+	("(expr|let)", ("prefix*", "LET", "expr"), lambda attr, LET, var: NodeDecl(var).AppendPrefix(*attr)),
 	
 	# expr: (union|tuple|suffixed)
 	("expr", ("union",), lambda x: x),
