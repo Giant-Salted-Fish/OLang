@@ -133,7 +133,9 @@ class NodeLabel(Node):
 		return self._GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
-		return ctx.Lookup(self.token.GetValue())[0], ControlState.PASS
+		result = ctx.Lookup(self.token.GetValue())
+		assert result is not None
+		return result[0], ControlState.PASS
 	
 	def Decl(self, ctx):
 		ctx.Push(self.token.GetValue(), None, lambda _: None)

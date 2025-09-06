@@ -20,6 +20,6 @@ if __name__ == "__main__":
 	
 	mod = EvaluationContext()
 	_, _ = ast2.Eval(mod)
-	func = mod.Lookup("test")[0]
+	func = mod.Lookup("test")[0]  # type: ignore
 	result, _ = func.Invoke((5, 7), EvaluationContext())
 	print(f"{result = }")

@@ -5,11 +5,11 @@ from enum import Enum, auto, unique
 class EvaluationContext:
 	def __init__(self, parent: "EvaluationContext | None" = None):
 		self._parent = parent
-		self._symbol_table = {}
-		self._stack = []
+		self._symbol_table: dict[str, tuple[Any, Callable]] = {}
+		self._stack: list[str] = []
 	
-	def Lookup(self, symbol: str) -> Any:
-		return self._symbol_table.get(symbol) or self._parent.Lookup(symbol)  # type: ignore
+	def Lookup(self, symbol: str) -> tuple[Any, Callable] | None:
+		return self._symbol_table.get(symbol) or (self._parent and self._parent.Lookup(symbol))
 	
 	def Push[T](self, symbol: str, value: T, destructor: Callable[[T], None]):
 		self._stack.append(symbol)
