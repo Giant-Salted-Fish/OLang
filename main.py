@@ -18,8 +18,8 @@ if __name__ == "__main__":
 	ast2 = parser.Parse(scaner.Tokenize(source_code))
 	print(ast2)
 	
-	mod = EvaluationContext()
-	_, _ = ast2.Eval(mod)
-	func = mod.Lookup("test")[0]  # type: ignore
+	scope = EvaluationContext()
+	_, _ = ast.RawEval(scope)
+	func = scope.Lookup("test")[0]  # type: ignore
 	result, _ = func.Invoke((5, 7), EvaluationContext())
 	print(f"{result = }")

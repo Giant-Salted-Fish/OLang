@@ -172,6 +172,12 @@ class NodeCompound(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Eval(self, ctx):
+		scope = ctx.PushScope()
+		result = self.RawEval(scope)
+		scope.PopScope()
+		return result
+	
+	def RawEval(self, ctx: EvaluationContext) -> tuple[Any, ControlState]:
 		val, ctrl = (), ControlState.PASS
 		for node in self.nodes:
 			val, ctrl = node.Eval(ctx)
@@ -228,7 +234,7 @@ class NodeAssign(Node):
 
 
 class NodeFunc(Node):
-	def __init__(self, param: Node, body: Node):
+	def __init__(self, param: Node, body: NodeCompound):
 		self.param = param
 		self.body = body
 	
@@ -242,9 +248,10 @@ class NodeFunc(Node):
 		scope = ctx.PushScope()
 		self.param.Decl(scope)
 		self.param.Unwind(arg, scope)
-		ret_val = self.body.Eval(scope)
+		val, ctrl = self.body.RawEval(scope)
+		assert ctrl in (ControlState.PASS, ControlState.RETURN)
 		scope.PopScope()
-		return ret_val
+		return val, ControlState.PASS
 	
 	def GenCode(self):
 		lines = self._JoinText(" -> ", self.param.GenCode(), self.body.GenCode())
@@ -253,7 +260,7 @@ class NodeFunc(Node):
 
 
 class NodeTmplt(Node):
-	def __init__(self, param: Node, body: Node):
+	def __init__(self, param: Node, body: NodeCompound):
 		self.param = param
 		self.body = body
 	
@@ -267,9 +274,10 @@ class NodeTmplt(Node):
 		scope = ctx.PushScope()
 		self.param.Decl(scope)
 		self.param.Unwind(arg, scope)
-		ret_val = self.body.Eval(scope)
+		val, ctrl = self.body.RawEval(scope)
+		assert ctrl in (ControlState.PASS, ControlState.RETURN)
 		scope.PopScope()
-		return ret_val
+		return val, ControlState.PASS
 	
 	def GenCode(self):
 		lines = self._JoinText(" #> ", self.param.GenCode(), self.body.GenCode())

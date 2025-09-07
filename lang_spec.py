@@ -163,7 +163,7 @@ SYNTAX_RULES = [
 	("(lmbd|or)", ("or",), lambda x: x),
 	
 	# lmbd: or -> (lmbd|or)
-	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeFunc(param, body)),
+	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeFunc(param, body if isinstance(body, NodeCompound) else NodeCompound(body))),
 	
 	# or: or || and
 	#   | and
@@ -225,11 +225,11 @@ SYNTAX_RULES = [
 	#      | prefix* (STRUCT|FN) bound
 	#      | prefix* { stmt_lst }
 	#      | post
-	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTmplt(param, body).AppendPrefix(*attr)),
-	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, body).AppendPrefix(*attr)),
+	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTmplt(param, body if isinstance(body, NodeCompound) else NodeCompound(body)).AppendPrefix(*attr)),
+	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, body if isinstance(body, NodeCompound) else NodeCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "bound"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
-	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: (NodeTuple() if len(lst) == 0 else lst[0] if len(lst) == 1 else NodeCompound(*lst)).AppendPrefix(*attr)),
+	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
 	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, x, RPR: NodeStruct(*x).AppendPrefix(*attr)),
 	("bound", ("post",), lambda x: make_applied(x)),
 	
