@@ -1,4 +1,4 @@
-from scaner import Token
+from scanner import Token
 from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence, Any
 
 
@@ -14,10 +14,10 @@ class Production[T](NamedTuple):
 class Item[T](NamedTuple):
 	production: Production[T]
 	dot_pos: int
-	lookaheads: frozenset[T | None]
+	lookahead: frozenset[T | None]
 	
 	def __repr__(self):
-		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookaheads={self.lookaheads})"
+		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
 
 
 class Syntax[T]:
@@ -101,11 +101,11 @@ class Syntax[T]:
 				new_lookahead |= lookahead
 			
 			next_prods = self.GetProductionsOf(next_symbol)
-			for p, lkahd in zip(next_prods, (new_lookahead,) + tuple(new_lookahead.copy() for _ in range(len(next_prods) - 1))):
-				expand_item(p, 0, lkahd)
+			for p, ahd in zip(next_prods, (new_lookahead,) + tuple(new_lookahead.copy() for _ in range(len(next_prods) - 1))):
+				expand_item(p, 0, ahd)
 		
-		for production, dot_pos, lookaheads in items:
-			expand_item(production, dot_pos, set(lookaheads))
+		for production, dot_pos, lookahead in items:
+			expand_item(production, dot_pos, set(lookahead))
 		assert len(new_state) > 0
 		
 		return frozenset(
@@ -136,7 +136,7 @@ class Syntax[T]:
 				working_set.difference_update(items)
 				items.append(item)
 				
-				new_items = [(it.production, it.dot_pos + 1, it.lookaheads) for it in items]
+				new_items = [(it.production, it.dot_pos + 1, it.lookahead) for it in items]
 				next_state = self.ExpandState(new_items)
 				next_sid = explore(next_state)
 				if following := self.AsTerminal(next_symbol):
@@ -148,7 +148,7 @@ class Syntax[T]:
 			working_set = set(it for it in state if it.dot_pos == len(it.production.rhs))
 			while working_set:
 				item = working_set.pop()
-				for terminal in item.lookaheads:
+				for terminal in item.lookahead:
 					if (sid, terminal) in shift_table:
 						print(f"Potential shift-reduce conflict: {terminal}")
 						continue
@@ -181,7 +181,7 @@ class Syntax[T]:
 				state = state_stack[-1]
 				
 				new_items = tuple(
-					(it.production, it.dot_pos + 1, it.lookaheads)
+					(it.production, it.dot_pos + 1, it.lookahead)
 					for it in state
 					if it.dot_pos < len(it.production.rhs) and it.production.rhs[it.dot_pos] == token.GetType()
 				)
@@ -216,7 +216,7 @@ class Syntax[T]:
 				
 				state = state_stack[-1]
 				new_items = tuple(
-					(it.production, it.dot_pos + 1, it.lookaheads)
+					(it.production, it.dot_pos + 1, it.lookahead)
 					for it in state
 					if it.dot_pos < len(it.production.rhs) and it.production.rhs[it.dot_pos] == reduce_rule.lhs
 				)

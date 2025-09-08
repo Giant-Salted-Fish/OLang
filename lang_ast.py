@@ -1,5 +1,5 @@
 from typing import Self, Any
-from scaner import Token
+from scanner import Token
 from interpreter import EvaluationContext, ControlState
 
 
@@ -259,7 +259,7 @@ class NodeFunc(Node):
 		return self._AppendAttrText(lines)
 
 
-class NodeTmplt(Node):
+class NodeTemplate(Node):
 	def __init__(self, param: Node, body: NodeCompound):
 		self.param = param
 		self.body = body

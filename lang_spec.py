@@ -1,6 +1,6 @@
 from parser import Production
 from lang_ast import (
-	Node, NodeInt, NodeLabel, NodeStr, NodeCompound, NodeDecl, NodeAssign, NodeFunc, NodeTmplt,
+	Node, NodeInt, NodeLabel, NodeStr, NodeCompound, NodeDecl, NodeAssign, NodeFunc, NodeTemplate,
 	NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp, NodeAccess, NodeIndex,
 	NodeReturn, NodeIfElse, NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
@@ -84,7 +84,7 @@ SYNTAX_RULES = [
 	
 	# decl: prefix* (TEMPL|FN) bound bound bound
 	# decl: prefix* (STRUCT|TUPLE) bound bound
-	("decl", ("prefix*", "TMPLT", "bound", "bound", "bound"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTmplt(param, body).AppendPrefix(*attr))),
+	("decl", ("prefix*", "TMPLT", "bound", "bound", "bound"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTemplate(param, body).AppendPrefix(*attr))),
 	("decl", ("prefix*", "FN", "bound", "bound", "bound"), lambda attr, FN, label, param, body: NodeAssign(NodeDecl(label), NodeFunc(param, body).AppendPrefix(*attr))),
 	("decl", ("prefix*", "STRUCT", "bound", "bound"), lambda attr, STRUCT, label, body: NodeAssign(NodeDecl(label), NodeNamedStruct(body).AppendPrefix(*attr))),
 	("decl", ("prefix*", "TUPLE", "bound", "bound"), lambda attr, TUPLE, label, body: NodeAssign(NodeDecl(label), NodeNamedTuple(body).AppendPrefix(*attr))),
@@ -225,7 +225,7 @@ SYNTAX_RULES = [
 	#      | prefix* (STRUCT|FN) bound
 	#      | prefix* { stmt_lst }
 	#      | post
-	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTmplt(param, body if isinstance(body, NodeCompound) else NodeCompound(body)).AppendPrefix(*attr)),
+	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, body if isinstance(body, NodeCompound) else NodeCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, body if isinstance(body, NodeCompound) else NodeCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "bound"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),

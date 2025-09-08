@@ -26,7 +26,7 @@ class Token[T]:
 		return f"Token(type={repr(self.GetType())}, value={repr(self.GetValue())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
 
 
-class Scaner[T]:
+class Scanner[T]:
 	def __init__(
 		self,
 		match_lst: Iterable[tuple[T, Callable[[str, int], int]]],
@@ -47,19 +47,19 @@ class Scaner[T]:
 				if col_idx >= len(line):
 					break
 				
-				match_len = 0
+				token_len = 0
 				token_type = None
 				for type_, matcher in self._match_lst:
-					mlen = matcher(line, col_idx)
-					if mlen > match_len:
-						match_len = mlen
+					match_len = matcher(line, col_idx)
+					if match_len > token_len:
+						token_len = match_len
 						token_type = type_
-				if match_len == 0:
+				if token_len == 0:
 					raise ValueError(f"Invalid token at line={line_num + 1}, column={col_idx + 1}")
 				
-				yield Token(token_type, lines, line_num, col_idx, match_len)
+				yield Token(token_type, lines, line_num, col_idx, token_len)
 				
-				col_idx += match_len
+				col_idx += token_len
 			line_num += 1
 		yield Token(None, lines, line_num - 1, col_idx, 0)
 	
@@ -75,4 +75,4 @@ class Scaner[T]:
 			return match
 		match_lst = tuple((type_, build_matcher(pattern)) for type_, pattern in types)
 		match_space = build_matcher(r"\s*")
-		return Scaner(match_lst, match_space)
+		return Scanner(match_lst, match_space)

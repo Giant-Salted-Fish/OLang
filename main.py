@@ -1,4 +1,4 @@
-from scaner import Scaner
+from scanner import Scanner
 from parser import Syntax
 from interpreter import EvaluationContext
 import lang_spec
@@ -8,14 +8,14 @@ if __name__ == "__main__":
 	with open("test.olang", "r", encoding="utf-8") as f:
 		source_code = f.read()
 	
-	scaner = Scaner.Build(lang_spec.TOKEN_TYPES)
+	scanner = Scanner.Build(lang_spec.TOKEN_TYPES)
 	syntax = Syntax.Build(lang_spec.SYNTAX_RULES, lang_spec.TERMINALS.__contains__)
-	ast = syntax.BruteLR1Parse(scaner.Tokenize(source_code))
+	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
 	print("\n".join(ast.GenCode()))
 	
 	parser = syntax.BuildLR1Parser()
 	print(parser)
-	ast2 = parser.Parse(scaner.Tokenize(source_code))
+	ast2 = parser.Parse(scanner.Tokenize(source_code))
 	print(ast2)
 	
 	scope = EvaluationContext()
