@@ -107,9 +107,9 @@ SYNTAX_RULES = [
 	
 	# ctrl..: prefix* (IF|WHILE) bound bound else_x..
 	#       | prefix* FOR bound bound bound else_x..
-	("ctrl..", ("prefix*", "IF", "bound", "bound", "else_ctrl.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, expr, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl..", ("prefix*", "WHILE", "bound", "bound", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, loop, x[0]).AppendPrefix(*attr), *x[1:])),
-	("ctrl..", ("prefix*", "FOR", "bound", "bound", "bound", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, loop, x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl..", ("prefix*", "IF", "bound", "bound", "else_ctrl.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, check_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl..", ("prefix*", "WHILE", "bound", "bound", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
+	("ctrl..", ("prefix*", "FOR", "bound", "bound", "bound", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
 	# else_ctrl..: prefix* ELSE x..
 	#            | stmt?
@@ -119,11 +119,11 @@ SYNTAX_RULES = [
 	
 	# ctrl_else: prefix* (IF|WHILE) bound bound else?
 	#          | prefix* FOR bound bound bound else?
-	("ctrl_else", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, expr, otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, loop, otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, loop, otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, check_compound(expr), otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, check_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, check_compound(loop), otherwise).AppendPrefix(*attr)),
 	("else?", ("prefix*", "ELSE", "ctrl_else"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: check_compound(x).AppendPrefix(*attr)),
 	("else?", (), lambda: NodeCompound()),
 	
 	# assign: (prefix* LET)? expr = assign
