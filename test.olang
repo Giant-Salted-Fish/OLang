@@ -1,8 +1,15 @@
 
+@MainFunc
 fn test(a: I32, b) {
     // This is a test function
     let func = (a: I32, b: I32) -> a + b;
     let c = a + 9 * 5;
+    if (b > 5) {
+        c = c + 7;
+    }
+    else {
+        return 99;
+    }
     let d = 4 * (b - 2);
     return func(c, d);
 }

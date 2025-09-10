@@ -3,40 +3,32 @@ from enum import Enum, auto, unique
 
 
 class EvaluationContext:
-	def __init__(self, parent: "EvaluationContext | None" = None):
+	def __init__(self, parent: "EvaluationContext | None"):
 		self._parent = parent
 		self._symbol_table: dict[str, tuple[Any, Callable]] = {}
 		self._stack: list[str] = []
 	
-	def Lookup(self, symbol: str) -> tuple[Any, Callable] | None:
-		return self._symbol_table.get(symbol) or (self._parent and self._parent.Lookup(symbol))
+	def Lookup(self, symbol: str) -> Any:
+		if symbol in self._symbol_table:
+			return self._symbol_table[symbol]
+		
+		assert self._parent is not None, f"No variable named {{{symbol}}} to lookup"
+		return self._parent.Lookup(symbol)
 	
-	def Push[T](self, symbol: str, value: T, destructor: Callable[[T], None]):
+	def Push(self, symbol: str, value: Any):
 		self._stack.append(symbol)
-		self._symbol_table[symbol] = (value, destructor)
+		self._symbol_table[symbol] = value
 	
-	def Pop[T](self, symbol: str) -> tuple[T, Callable[[T], None]]:
+	def Pop(self, symbol: str) -> Any:
 		self._stack.remove(symbol)
 		return self._symbol_table.pop(symbol)
 	
-	def Update[T](self, symbol: str, value: T, destructor: Callable[[T], None]):
-		self.Release(symbol)
-		self.Push(symbol, value, destructor)
-	
-	def Release(self, symbol: str):
-		self._stack.remove(symbol)
-		value, destructor = self._symbol_table.pop(symbol)
-		destructor(value)
-	
-	def PushScope(self):
-		return EvaluationContext(self)
-	
-	def PopScope(self):
-		for symbol in self._stack:
-			value, destructor = self._symbol_table.pop(symbol)
-			destructor(value)
-		self._stack.clear()
-		return self._parent
+	def Update(self, symbol: str, value: Any):
+		if symbol in self._symbol_table:
+			self._symbol_table[symbol] = value
+		else:
+			assert self._parent is not None, f"No variable named {{{symbol}}} to update"
+			self._parent.Update(symbol, value)
 
 
 @unique
