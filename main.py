@@ -28,7 +28,8 @@ if __name__ == "__main__":
 	scope = EvaluationContext(None)
 	_, _ = ast.RawEval(scope)
 	func = scope.Lookup("test")
-	result, ctrl = func((5, 7))
-	# result, _ = func((5, 1))
+	arg = 5, 7
+	# arg = 5, 1
+	result, ctrl = func(arg)
 	print("===== Result of Invoking test Function =====")
-	print(f"test(5, 7) -> {result} (control state = {ctrl})")
+	print(f"test{arg} -> {result} (control state = {ctrl})")

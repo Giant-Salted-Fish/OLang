@@ -539,6 +539,34 @@ class NodeReturn(Node):
 		return self._AppendAttrText(lines)
 
 
+class NodeBreak(Node):
+	def __init__(self, expr: Node):
+		self.expr = expr
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.expr}")
+	
+	def Eval(self, ctx):
+		val, ctrl = self.expr.Eval(ctx)
+		return val, ControlState.BREAK_LOOP if ctrl is ControlState.PASS else ctrl
+	
+	def GenCode(self):
+		expr = self.expr.GenCode()
+		lines = self._JoinText(" ", ["break"], expr)
+		return self._AppendAttrText(lines)
+
+
+class NodeContinue(Node):
+	def __repr__(self):
+		return self._GenStr("")
+	
+	def Eval(self, ctx):
+		return None, ControlState.CONT_LOOP
+	
+	def GenCode(self):
+		return self._AppendAttrText(["continue"])
+
+
 class NodeIfElse(Node):
 	def __init__(self, cond: Node, true_branch: NodeCompound, false_branch: NodeCompound):
 		self.cond = cond
@@ -581,8 +609,13 @@ class NodeWhileElse(Node):
 				return self.else_branch.Eval(ctx)
 			
 			val, ctrl = self.loop_body.Eval(scope)
-			if ctrl not in (ControlState.PASS, ControlState.CONT_LOOP):
-				return val, ctrl
+			match ctrl:
+				case ControlState.RETURN:
+					return val, ControlState.RETURN
+				case ControlState.BREAK_LOOP:
+					return val, ControlState.PASS
+				case ControlState.PASS | ControlState.CONT_LOOP:
+					pass
 	
 	def GenCode(self):
 		cond = self.cond.GenCode()

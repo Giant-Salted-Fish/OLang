@@ -2,15 +2,18 @@ from parser import Production
 from lang_ast import (
 	Node, NodeInt, NodeLabel, NodeStr, NodeCompound, NodeDecl, NodeAssign, NodeFunc, NodeTemplate,
 	NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp, NodeAccess, NodeIndex,
-	NodeReturn, NodeIfElse, NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
+	NodeReturn, NodeBreak, NodeContinue, NodeIfElse, NodeWhileElse, NodeForElse, NodeNamedTuple,
+	NodeNamedStruct
 )
 from typing import Callable
 
 
 TOKEN_TYPES = [
 	("TMPLT", r"template"),
+	("CONTINUE", r"continue"),
 	("STRUCT", r"struct"),
 	("RETURN", r"return"),
+	("BREAK", r"break"),
 	("TUPLE", r"tuple"),
 	("WHILE", r"while"),
 	("ELSE", r"else"),
@@ -80,6 +83,9 @@ SYNTAX_RULES = [
 	#     | prefix* RETURN assign
 	("stmt", ("assign",), lambda x: x),
 	("stmt", ("prefix*", "RETURN", "expr"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "BREAK", "expr"), lambda attr, BREAK, x: NodeBreak(x).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "BREAK"), lambda attr, BREAK: NodeBreak(NodeTuple()).AppendPrefix(*attr)),
+	("stmt", ("prefix*", "CONTINUE"), lambda attr, CONT: NodeContinue().AppendPrefix(*attr)),
 	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* (TMPLT|FN) bound bound bound

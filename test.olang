@@ -4,11 +4,19 @@ fn test(a: I32, b) {
     // This is a test function
     let func = (a: I32, b: I32) -> a + b;
     let c = a + 9 * 5;
-    if (b > 5) {
+    if (b > 15) {
         c = c + 7;
     }
     else {
-        return 99;
+        let i = 0;
+        while (i < 10) {
+            a = a + 5;
+            if (i >= b) {
+                break
+            }
+            i = i + 1
+        }
+        return a;
     }
     let d = 4 * (b - 2);
     return func(c, d);
