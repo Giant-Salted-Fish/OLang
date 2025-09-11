@@ -173,6 +173,14 @@ class NodeCompound(Node):
 		result = self.RawEval(scope)
 		return result
 	
+	def Decl(self, ctx):
+		assert len(self.nodes) == 1, "Declare compound node with more than one statement"
+		self.nodes[0].Decl(ctx)
+	
+	def Unwind(self, val, ctx):
+		assert len(self.nodes) == 1, "Unwind compound node with more than one statement"
+		self.nodes[0].Unwind(val, ctx)
+	
 	def RawEval(self, ctx: EvaluationContext) -> tuple[Any, ControlState]:
 		val, ctrl = (), ControlState.PASS
 		for node in self.nodes:
