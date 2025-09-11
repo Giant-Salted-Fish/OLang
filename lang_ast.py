@@ -130,7 +130,7 @@ class NodeLabel(Node):
 		return self._GenStr(repr(self.token.GetValue()))
 	
 	def Eval(self, ctx):
-		val = ctx.Lookup(self.token.GetValue())
+		val = ctx.Resolve(self.token.GetValue())
 		assert val is not None
 		return val, ControlState.PASS
 	
@@ -169,7 +169,7 @@ class NodeCompound(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	def Eval(self, ctx):
-		scope = EvaluationContext(ctx)
+		scope = EvaluationContext.Nest(ctx)
 		result = self.RawEval(scope)
 		return result
 	
@@ -224,6 +224,18 @@ class NodeAssign(Node):
 		self.var.Unwind(val, ctx)
 		return val, ControlState.PASS
 	
+	def Decl(self, ctx):
+		"""For struct unwind."""
+		self.expr.Decl(ctx)
+	
+	def Unwind(self, val, ctx):
+		"""For struct unwind."""
+		assert isinstance(self.var, NodeDecl)
+		scope = EvaluationContext(None, [], val)
+		data, ctrl = self.var.var.Eval(scope)
+		assert ctrl is ControlState.PASS
+		self.expr.Unwind(data, ctx)
+	
 	def GenCode(self):
 		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
 		return self._AppendAttrText(lines)
@@ -239,7 +251,7 @@ class NodeFunc(Node):
 	
 	def Eval(self, ctx):
 		def func(arg):
-			scope = EvaluationContext(ctx)
+			scope = EvaluationContext.Nest(ctx)
 			self.param.Decl(scope)
 			self.param.Unwind(arg, scope)
 			val, ctrl = self.body.RawEval(scope)
@@ -263,7 +275,7 @@ class NodeTemplate(Node):
 	
 	def Eval(self, ctx):
 		def tmplt(arg):
-			scope = EvaluationContext(ctx)
+			scope = EvaluationContext.Nest(ctx)
 			self.param.Decl(scope)
 			self.param.Unwind(arg, scope)
 			val, ctrl = self.body.RawEval(scope)
@@ -345,9 +357,7 @@ class NodeTuple(Node):
 			node.Decl(ctx)
 	
 	def Unwind(self, val, ctx):
-		if not isinstance(val, tuple):
-			raise ValueError(f"Expected tuple, got {val}")
-		
+		assert isinstance(val, tuple), f"Expected tuple, got {type(val)}"
 		assert len(val) == len(self.nodes)
 		for i, node in enumerate(self.nodes):
 			node.Unwind(val[i], ctx)
@@ -372,8 +382,23 @@ class NodeStruct(Node):
 		return self._GenStr(repr(self.fields)[1:-2])
 	
 	def Eval(self, ctx):
-		# FIXME
-		return super().Eval(ctx)
+		scope = EvaluationContext.Nest(ctx)
+		for node in self.fields:
+			val, ctrl = node.Eval(scope)
+			if ctrl is not ControlState.PASS:
+				return val, ctrl
+		return scope.GetLocals(), ControlState.PASS
+	
+	def Decl(self, ctx):
+		for field in self.fields:
+			assert isinstance(field, NodeAssign)
+			field.Decl(ctx)
+	
+	def Unwind(self, val, ctx):
+		assert isinstance(val, dict), f"Expect dict (struct), got {type(val)}"
+		for field in self.fields:
+			assert isinstance(field, NodeAssign)
+			field.Unwind(val, ctx)
 	
 	def GenCode(self):
 		elements = [field.GenCode() for field in self.fields]
@@ -577,7 +602,7 @@ class NodeIfElse(Node):
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
 	def Eval(self, ctx):
-		scope = EvaluationContext(ctx)
+		scope = EvaluationContext.Nest(ctx)
 		cond, ctrl = self.cond.Eval(scope)
 		assert ctrl is ControlState.PASS
 		return self.true_branch.Eval(scope) if cond else self.false_branch.Eval(ctx)
@@ -600,7 +625,7 @@ class NodeWhileElse(Node):
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
 	
 	def Eval(self, ctx):
-		scope = EvaluationContext(ctx)
+		scope = EvaluationContext.Nest(ctx)
 		while True:
 			cond, ctrl = self.cond.Eval(scope)
 			assert ctrl is ControlState.PASS

@@ -25,9 +25,9 @@ if __name__ == "__main__":
 	print(ast2)
 	print("")
 	
-	scope = EvaluationContext(None)
+	scope = EvaluationContext.New()
 	_, _ = ast.RawEval(scope)
-	func = scope.Lookup("test")
+	func = scope.Resolve("test")
 	arg = 5, 7
 	# arg = 5, 1
 	result, ctrl = func(arg)
