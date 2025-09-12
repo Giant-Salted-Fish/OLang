@@ -1,9 +1,9 @@
 from parser import Production
 from lang_ast import (
-	Node, NodeInt, NodeLabel, NodeStr, NodeCompound, NodeDecl, NodeAssign, NodeFunc, NodeTemplate,
-	NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp, NodeAccess, NodeIndex,
-	NodeReturn, NodeBreak, NodeContinue, NodeIfElse, NodeWhileElse, NodeForElse, NodeNamedTuple,
-	NodeNamedStruct
+	Node, NodeInt, NodeLabel, NodeStr, NodeBool, NodeCompound, NodeDecl, NodeAssign, NodeFunc,
+	NodeTemplate, NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp,
+	NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse, NodeWhileElse,
+	NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
 from typing import Callable
 
@@ -22,6 +22,7 @@ TOKEN_TYPES = [
 	("IF", r"if"),
 	("FN", r"fn"),
 	
+	("BOOL", r"TRUE|FALSE|true|false"),
 	("INT", r"[0-9]\d*"),
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
 	("STR", r"\"(?:[^\"\\]|\\[tnr])*\""),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
@@ -268,6 +269,7 @@ SYNTAX_RULES = [
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("STR",), NodeStr),
+	("prim", ("BOOL",), NodeBool),
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),

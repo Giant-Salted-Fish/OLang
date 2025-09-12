@@ -161,6 +161,26 @@ class NodeStr(Node):
 		return self._AppendAttrText([self.token.GetValue()])
 
 
+class NodeBool(Node):
+	def __init__(self, token: Token):
+		self.token = token
+	
+	def __repr__(self):
+		return self._GenStr(repr(self.token.GetValue()))
+	
+	def Eval(self, ctx):
+		return self._GetVal(), ControlState.PASS
+	
+	def _GetVal(self):
+		return self.token.GetValue().lower() == "true"
+	
+	def Unwind(self, val, ctx):
+		assert isinstance(val, bool) and val == self._GetVal()
+	
+	def GenCode(self):
+		return self._AppendAttrText([self.token.GetValue()])
+
+
 class NodeCompound(Node):
 	def __init__(self, *nodes: Node):
 		self.nodes = nodes
