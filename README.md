@@ -47,9 +47,10 @@ let stct = .(
 );
 ```
 
-不过 OLang 对使用 `.( )` 创建结构体的语法提供了特殊照顾，声明字段时 `let` 关键字可以省略，末尾的分号也可以换成逗号，因此写成下面这种形式也是也可以的：
+不过 OLang 对使用 `.( )` 创建结构体的语法提供了一些特殊照顾，声明字段时的 `let` 关键字可以省略，末尾的分号也可以换成逗号，所以写成下面这个样子也是可以的：
 
 ```
+// 这种写法更像其它语言中创建结构体的语法
 let stct = .(fld1 = TRUE, fld2 = "Hello, world!", fld3 = 5);
 
 // 支持混搭语法，但并不推荐
@@ -99,7 +100,7 @@ OLang 也支持 JS、Python、Rust 等语言中常见的解构赋值，利用它
 // 解构元组，得到变量 a = 5, b = "Hello", c = TRUE
 let a, b: str, c = (5, "Hello", TRUE);
 
-// 解构结构体，得到变量 a = 5, b = 7
+// 解构结构体，得到变量 d = 5, e = 7
 let .(let foo = d, let bar = e) = .{
     let foo = 5;
     let bar = 7
@@ -118,7 +119,7 @@ a, b, c = 13, "World", FALSE;
 (a, b, c) = (1, 3, 5);  // 省略两边的括号会让整条语句变成一个元组表达式
 ```
 
-但它的坏处在于会让下面这种代码变得很有迷惑性：
+这种设计不好的地方在于会让下面这种代码变得很有迷惑性：
 
 ```
 a = 3, b = 5, c = 7;  // 这行代码做了什么？
@@ -330,6 +331,15 @@ else if (y == 5) {
 ### 语义规范
 
 `TODO`
+
+### 参考资料
+
+- pongba 的 [rev#1](https://blog.csdn.net/pongba/article/details/1732055)（[转载](https://jackxiang.com/post/2068/)）和 [rev#2](https://blog.csdn.net/pongba/article/details/1815742)（[转载](https://www.cnblogs.com/taoxu0903/archive/2008/04/04/1137864.html)）博客
+- pongba 的[《C++0x漫谈》](https://blog.csdn.net/pongba/category_158724.html)系列博客
+- vczh 的[《如何设计一门语言》](http://www.cppblog.com/vczh/archive/2013/04/27/199765.html)系列博客
+- 斯坦福大学 [CS143 编译原理](https://www.bilibili.com/video/BV1Mb42177J7)课程
+- 加利福尼亚州立大学 [CSC 151 编译器构造](https://www.youtube.com/playlist?list=PL6KMWPQP_DM97Hh0PYNgJord-sANFTI3i)课程
+- [Simple but Powerful Pratt Parsing](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html) 短文
 
 ### 未来的规划（大饼）
 
