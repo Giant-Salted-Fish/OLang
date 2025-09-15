@@ -151,7 +151,7 @@ let result = {
 let empty = {};  // 等同于 let empty = ();
 ```
 
-请注意，下面这种写可能让熟悉 C 或 Python 的开发者感到迷惑：
+请注意，下面这种写法可能让熟悉 C 或 Python 的开发者感到迷惑：
 
 ```
 let tup = { 1, 3, 5 };
@@ -217,7 +217,7 @@ let foo = fn (x: i32, y: i32) {
 };
 ```
 
-特别地，OLang 还支持使用箭头运算符 `->` 创建匿名函数的语法：
+特别地，OLang 还支持使用箭头运算符 `->` 来创建匿名函数：
 
 ```
 let foo: i32 -> i32 = x -> x + 1;
@@ -250,7 +250,8 @@ let p = Pair#(i32, bool) .(
 虽然 OLang 目前尚未支持模板参数自动推导，但已经为其预留好了语法，实例化模板时省略其后的井号和模板参数即可：
 
 ```
-let p = Pair .(  // 自动推导类型应为 Pair#(i32, bool)
+// 自动推导的类型应为 Pair#(i32, bool)
+let p = Pair .(
     let first = 5,
     let second = TRUE
 );
@@ -270,30 +271,25 @@ let word: str = (if (val > 3) "Hello" else "World");
 let result = (
     for item_list (it) {
         if (it.getName() == "test_item") {
-            break it
+            break it  // 找到特定名称的物品并返回
         }
     }
     else {
-        getDefaultTestItem()
+        getDefaultTestItem()  // 未能找到则返回默认物品
     }
 );
 ```
 
-对于没有 `else` 分支的 `if`/`while`/`for` 语句，OLang 会为它们隐式地补上一个返回空元组的 `else` 分支，因此下面这种写法：
+对于没有 `else` 分支的 `if`/`while`/`for` 语句，OLang 会为它们隐式地补上一个返回空元组的 `else` 分支，因此下面这两种写法是等价的：
 
 ```
-let result = (if cond { "Hello" });
-```
-
-等同于这种写法：
-
-```
-let result = (if cond { "Hello" } else {});  // 别忘了空代码块会返回空元组
+let result = (if cond { "Hello" });  // 省略末尾的 else 分支
+let result = (if cond { "Hello" } else {});  // 注意空代码块会返回空元组
 ```
 
 #### 类型注解
 
-OLang 的类型注解已经在前文的代码示例中出现过，它除了用来标注变量和函数参数的类型外还能用来标注表达式的类型，OLang 会在编译期检查被标注的表达式，确保其推导类型与标注类型相兼容。下面是一些类型注解的使用示例：
+OLang 的类型注解已经在前文的示例代码中出现过，它除了用来标注变量和函数参数的类型外还能用来标注表达式的类型，OLang 会在编译期检查被标注的表达式，确保其推导类型与标注类型相兼容。下面是一些类型注解的使用示例：
 
 ```
 let a = 5: i32;  // 标注字面量 5 的类型为 i32
@@ -323,8 +319,9 @@ if (x > 3) {
 }
 @Frequency(BranchFrequency.MEDIAN)
 else if (y == 5) {
-    // 请注意，这种写法相当于使用 TestAnnotation(doAnotherThing) 标注空元组
-    @TestAnnotation doAnotherThing ();
+    // 请注意因为结合优先级的原因，下面这种写法相当于使用 TestAnnotation(something) 标注空元组
+    @TestAnnotation something ();
+    @(TestAnnotation something) ();  // 也就是说和这种写法等价
 }
 ```
 

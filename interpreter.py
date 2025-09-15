@@ -20,7 +20,7 @@ class EvaluationContext:
 		if symbol in self._local_table:
 			return self._local_table[symbol]
 		
-		assert self._parent is not None, f"No variable named {{{symbol}}} to lookup"
+		assert self._parent is not None, f"No variable named \"{symbol}\" to lookup"
 		return self._parent.Resolve(symbol)
 	
 	def Push(self, symbol: str, value: Any):
@@ -36,7 +36,7 @@ class EvaluationContext:
 		if symbol in self._local_table:
 			self._local_table[symbol] = value
 		else:
-			assert self._parent is not None, f"No variable named {{{symbol}}} to update"
+			assert self._parent is not None, f"No variable named \"{symbol}\" to update"
 			self._parent.Update(symbol, value)
 	
 	def GetLocals(self):
