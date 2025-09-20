@@ -28,12 +28,12 @@ let v4 = "Hello, world!";  // 字符串字面量
 
 #### 结构化类型
 
-OLang 为元组和结构体这两种编程中常用的结构化数据类型提供了原生语法支持，要在 OLang 中创建元组可以使用如下语法：
+OLang 为元组和结构体这两种编程中常用的结构化数据类型提供了原生语法支持，要在 OLang 中创建元组可以使用逗号运算符：
 
 ```
 let tup1 = ();  // 创建一个空元组
 let tup2 = 5,;  // 如果元组只有一个元素，则末尾的逗号不能省略
-let tup3 = 1, 3, 5;  // 多个元素的元组，末尾的逗号可有可无
+let tup3 = 1, 3, 5;  // 有多个元素的元组，末尾的逗号可有可无
 let tup3 = (2, 4, 6);  // 当然如果你想的话也可以在元组两侧添加括号
 ```
 
@@ -331,8 +331,8 @@ else if (y == 5) {
 
 ### 参考资料
 
-- pongba 的 [rev#1](https://blog.csdn.net/pongba/article/details/1732055)（[转载](https://jackxiang.com/post/2068/)）和 [rev#2](https://blog.csdn.net/pongba/article/details/1815742)（[转载](https://www.cnblogs.com/taoxu0903/archive/2008/04/04/1137864.html)）博客
-- pongba 的[《C++0x漫谈》](https://blog.csdn.net/pongba/category_158724.html)系列博客
+- 刘未鹏的 [rev#1](https://blog.csdn.net/pongba/article/details/1732055)（[转载](https://jackxiang.com/post/2068/)）和 [rev#2](https://blog.csdn.net/pongba/article/details/1815742)（[转载](https://www.cnblogs.com/taoxu0903/archive/2008/04/04/1137864.html)）博客
+- 刘未鹏的[《C++0x漫谈》](https://blog.csdn.net/pongba/category_158724.html)系列博客
 - vczh 的[《如何设计一门语言》](http://www.cppblog.com/vczh/archive/2013/04/27/199765.html)系列博客
 - 斯坦福大学 [CS143 编译原理](https://www.bilibili.com/video/BV1Mb42177J7)课程
 - 加利福尼亚州立大学 [CSC 151 编译器构造](https://www.youtube.com/playlist?list=PL6KMWPQP_DM97Hh0PYNgJord-sANFTI3i)课程

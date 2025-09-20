@@ -71,8 +71,13 @@ TERMINALS = set(t for t, _ in TOKEN_TYPES)
 SYNTAX_RULES = [
 	("S", ("stmt_lst",), lambda lst: NodeCompound(*lst)),
 	
-	# stmt_lst: ((stmt ;)|decl|ctrl_else..|;) stmt_lst
-	#         | (stmt|ctrl..)?
+	# stmt_lst: stmt ; stmt_lst
+	#         | decl stmt_lst
+	#         | ctrl_else.. stmt_lst
+	#         | ; stmt_lst
+	#         | stmt
+	#         | ctrl..
+	#         | ε
 	("stmt_lst", ("stmt", ";", "stmt_lst"), lambda x, SEMI, lst: (x, *lst)),
 	("stmt_lst", ("decl", "stmt_lst"), lambda x, lst: (x, *lst)),
 	("stmt_lst", ("ctrl_else..", "stmt_lst"), lambda x, lst: (*x, *lst)),
@@ -83,12 +88,13 @@ SYNTAX_RULES = [
 	
 	# stmt: assign
 	#     | prefix* RETURN assign
+	#     | prefix* BREAK assign?
+	#     | prefix* CONTINUE
 	("stmt", ("assign",), lambda x: x),
 	("stmt", ("prefix*", "RETURN", "expr"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	("stmt", ("prefix*", "BREAK", "expr"), lambda attr, BREAK, x: NodeBreak(x).AppendPrefix(*attr)),
 	("stmt", ("prefix*", "BREAK"), lambda attr, BREAK: NodeBreak(NodeTuple()).AppendPrefix(*attr)),
 	("stmt", ("prefix*", "CONTINUE"), lambda attr, CONT: NodeContinue().AppendPrefix(*attr)),
-	# ("stmt", ("prefix*", "RETURN", "ctrl_else"), lambda attr, RET, x: NodeReturn(x).AppendPrefix(*attr)),
 	
 	# decl: prefix* (TMPLT|FN) bound bound bound
 	# decl: prefix* (STRUCT|TUPLE) bound bound
@@ -103,17 +109,20 @@ SYNTAX_RULES = [
 	("ctrl_else..", ("prefix*", "WHILE", "bound", "bound", "else.."), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	("ctrl_else..", ("prefix*", "FOR", "bound", "bound", "bound", "else.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
-	# else..: prefix* ELSE (bound|ctrl_else..)
+	# else..: prefix* ELSE ctrl_else..
+	#       | prefix* ELSE bound ctrl_else..
+	#       | prefix* ELSE bound stmt ;
+	#       | prefix* ELSE bound decl
+	#       | ctrl_else..
 	#       | stmt ;
 	#       | decl
-	#       | ctrl_else..
-	#       | ;
 	("else..", ("prefix*", "ELSE", "ctrl_else.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
-	("else..", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: (check_compound(x).AppendPrefix(*attr),)),
+	("else..", ("prefix*", "ELSE", "bound", "ctrl_else.."), lambda attr, ELSE, x, follow: (check_compound(x).AppendPrefix(*attr), *follow)),
+	("else..", ("prefix*", "ELSE", "bound", "stmt", ";"), lambda attr, ELSE, x, follow, SEMI: (check_compound(x).AppendPrefix(*attr), follow)),
+	("else..", ("prefix*", "ELSE", "bound", "decl"), lambda attr, ELSE, x, follow: (check_compound(x).AppendPrefix(*attr), follow)),
+	("else..", ("ctrl_else..",), lambda x: (NodeCompound(), *x)),
 	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
 	("else..", ("decl",), lambda x: (NodeCompound(), x)),
-	("else..", ("ctrl_else..",), lambda x: (NodeCompound(), *x)),
-	("else..", (";",), lambda SEMI: (NodeCompound(),)),
 	
 	# ctrl..: prefix* (IF|WHILE) bound bound else_ctrl..
 	#       | prefix* FOR bound bound bound else_ctrl..
@@ -121,21 +130,16 @@ SYNTAX_RULES = [
 	("ctrl..", ("prefix*", "WHILE", "bound", "bound", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	("ctrl..", ("prefix*", "FOR", "bound", "bound", "bound", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
-	# else_ctrl..: prefix* ELSE x..
-	#            | stmt?
+	# else_ctrl..: prefix* ELSE ctrl..
+	#            | prefix* ELSE bound ctrl..
+	#            | prefix* ELSE bound stmt
+	#            | ctrl
+	#            | stmt
 	("else_ctrl..", ("prefix*", "ELSE", "ctrl.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
-	("else_ctrl..", ("stmt",), lambda x: (NodeCompound(), x)),
+	("else_ctrl..", ("prefix*", "ELSE", "bound", "ctrl.."), lambda attr, ELSE, x, follow: (x.AppendPrefix(*attr), *follow)),
+	("else_ctrl..", ("prefix*", "ELSE", "bound", "stmt"), lambda attr, ELSE, x, follow: (x.AppendPrefix(*attr), follow)),
 	("else_ctrl..", ("ctrl..",), lambda x: (NodeCompound(), *x)),
-	("else_ctrl..", (), lambda: (NodeCompound(),)),
-	
-	# ctrl_else: prefix* (IF|WHILE) bound bound else?
-	#          | prefix* FOR bound bound bound else?
-	("ctrl_else", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, check_compound(expr), otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, check_compound(loop), otherwise).AppendPrefix(*attr)),
-	("ctrl_else", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, check_compound(loop), otherwise).AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "ctrl_else"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: check_compound(x).AppendPrefix(*attr)),
-	("else?", (), lambda: NodeCompound()),
+	("else_ctrl..", ("stmt",), lambda x: (NodeCompound(), x)),
 	
 	# assign: (prefix* LET)? expr = assign
 	#       | (prefix* LET)? expr
@@ -167,15 +171,27 @@ SYNTAX_RULES = [
 	("tuple..", ("suffixed",), lambda x: (x,)),
 	("tuple..", (), lambda: ()),
 	
-	# suffixed: (lmbd|or) suffix*
-	("suffixed", ("(lmbd|or)", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
-	("suffix*", ("suffix*", ":", "(lmbd|or)"), lambda lst, COLON, attr: (*lst, attr)),
+	# suffixed: (lmbd|ctrl_else|or) suffix*
+	("suffixed", ("(lmbd|ctrl_else|or)", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
+	("suffix*", ("suffix*", ":", "(lmbd|ctrl_else|or)"), lambda lst, COLON, attr: (*lst, attr)),
 	("suffix*", (), lambda: ()),
-	("(lmbd|or)", ("lmbd",), lambda x: x),
-	("(lmbd|or)", ("or",), lambda x: x),
+	("(lmbd|ctrl_else|or)", ("lmbd",), lambda x: x),
+	("(lmbd|ctrl_else|or)", ("ctrl_else",), lambda x: x),
+	("(lmbd|ctrl_else|or)", ("or",), lambda x: x),
 	
-	# lmbd: or -> (lmbd|or)
-	("lmbd", ("or", "->", "(lmbd|or)"), lambda param, ARROW, body: NodeFunc(param, check_compound(body))),
+	# lmbd: (ctrl_else|or) -> (lmbd|ctrl_else|or)
+	("lmbd", ("(ctrl_else|or)", "->", "(lmbd|ctrl_else|or)"), lambda param, ARROW, body: NodeFunc(param, check_compound(body))),
+	("(ctrl_else|or)", ("ctrl_else",), lambda x: x),
+	("(ctrl_else|or)", ("or",), lambda x: x),
+	
+	# ctrl_else: prefix* (IF|WHILE) bound bound else?
+	#          | prefix* FOR bound bound bound else?
+	("ctrl_else", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, check_compound(expr), otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, check_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl_else", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, check_compound(loop), otherwise).AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "ctrl_else"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: check_compound(x).AppendPrefix(*attr)),
+	("else?", (), lambda: NodeCompound()),
 	
 	# or: or || and
 	#   | and
@@ -260,7 +276,6 @@ SYNTAX_RULES = [
 	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),
 	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
-	("postfix", ("[", "ctrl_else", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("#",), lambda HASH: lambda node: node),
 	
 	# prim: (INT|LABEL|STR)
@@ -268,7 +283,6 @@ SYNTAX_RULES = [
 	#     | ( | )
 	#     | ( expr )
 	#     | ( decl )
-	#     | ( ctrl_else )
 	#     | .( field_lst )
 	#     | .{ stmt_lst }
 	("prim", ("INT",), NodeInt),
@@ -279,7 +293,6 @@ SYNTAX_RULES = [
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
-	("prim", ("(", "ctrl_else", ")"), lambda LPR, x, RPR: x),
 	("prim", (".(", "field_lst", ")"), lambda LPR, x, RPR: NodeStruct(*x)),
 	
 	# field_lst: field_set (;|,) field_lst
