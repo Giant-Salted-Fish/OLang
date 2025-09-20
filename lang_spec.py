@@ -103,9 +103,11 @@ SYNTAX_RULES = [
 	("ctrl_else..", ("prefix*", "WHILE", "bound", "bound", "else.."), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	("ctrl_else..", ("prefix*", "FOR", "bound", "bound", "bound", "else.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
-	# else..: prefix* ELSE x_else..
+	# else..: prefix* ELSE (bound|ctrl_else..)
 	#       | stmt ;
 	#       | decl
+	#       | ctrl_else..
+	#       | ;
 	("else..", ("prefix*", "ELSE", "ctrl_else.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
 	("else..", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: (check_compound(x).AppendPrefix(*attr),)),
 	("else..", ("stmt", ";"), lambda x, SEMI: (NodeCompound(), x)),
@@ -113,8 +115,8 @@ SYNTAX_RULES = [
 	("else..", ("ctrl_else..",), lambda x: (NodeCompound(), *x)),
 	("else..", (";",), lambda SEMI: (NodeCompound(),)),
 	
-	# ctrl..: prefix* (IF|WHILE) bound bound else_x..
-	#       | prefix* FOR bound bound bound else_x..
+	# ctrl..: prefix* (IF|WHILE) bound bound else_ctrl..
+	#       | prefix* FOR bound bound bound else_ctrl..
 	("ctrl..", ("prefix*", "IF", "bound", "bound", "else_ctrl.."), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, check_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
 	("ctrl..", ("prefix*", "WHILE", "bound", "bound", "else_ctrl.."), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	("ctrl..", ("prefix*", "FOR", "bound", "bound", "bound", "else_ctrl.."), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
@@ -123,6 +125,7 @@ SYNTAX_RULES = [
 	#            | stmt?
 	("else_ctrl..", ("prefix*", "ELSE", "ctrl.."), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
 	("else_ctrl..", ("stmt",), lambda x: (NodeCompound(), x)),
+	("else_ctrl..", ("ctrl..",), lambda x: (NodeCompound(), *x)),
 	("else_ctrl..", (), lambda: (NodeCompound(),)),
 	
 	# ctrl_else: prefix* (IF|WHILE) bound bound else?
