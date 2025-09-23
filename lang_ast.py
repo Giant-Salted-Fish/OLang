@@ -4,8 +4,11 @@ from interpreter import EvaluationContext, ControlState
 
 
 class Node:
-	prefix = ()
-	suffix = ()
+	prefix: tuple["Node", ...] = ()
+	suffix: tuple["Node", ...] = ()
+	
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
+		raise NotImplementedError
 	
 	def AppendPrefix(self, *attr: "Node") -> Self:
 		self.prefix = self.prefix + attr
@@ -24,82 +27,10 @@ class Node:
 	def Unwind(self, val: Any, ctx: EvaluationContext) -> None:
 		raise NotImplementedError
 	
-	def GenCode(self) -> list[str]:
-		raise NotImplementedError
-	
 	def _GenStr(self, fields: str) -> str:
 		pre = f", prefix={';'.join(str(attr) for attr in self.prefix)}" if self.prefix else ""
 		suf = f", suffix={';'.join(str(attr) for attr in self.suffix)}" if self.suffix else ""
 		return f"{self.__class__.__name__}({fields}{pre}{suf})"
-	
-	def _AppendAttrText(self, lines: list[str]) -> list[str]:
-		def gen_attr_text(prefix: str, attr: list[list[str]]):
-			assert all(len(lines) > 0 for lines in attr)
-			if attr and all(len(lines) == 1 for lines in attr):
-				return [" ".join(f"{prefix}{lines[0]}" for lines in attr)]
-			else:
-				return [line for lines in attr for line in self._PrefixText(prefix, lines)]
-		text = gen_attr_text("@", [node.GenCode() for node in self.prefix])
-		if len(text) == 1:
-			text = self._JoinText(" ", text, lines)
-		else:
-			text += lines
-		
-		suffix = gen_attr_text(":", [node.GenCode() for node in self.suffix])
-		if len(suffix) == 1:
-			text = self._JoinText(" ", text, suffix)
-		else:
-			text += suffix
-		return text
-	
-	@staticmethod
-	def _PrefixText(pre: str, text: list[str]) -> list[str]:
-		if len(text) == 0:
-			return [pre]
-		else:
-			return [f"{pre}{text[0]}", *text[1:]]
-	
-	@staticmethod
-	def _SuffixText(suf: str, text: list[str]) -> list[str]:
-		if len(text) == 0:
-			return [suf]
-		else:
-			return [*text[:-1], f"{text[-1]}{suf}"]
-	
-	@staticmethod
-	def _EncloseText(left: str, right: str, text: list[str], force_new_line=False) -> list[str]:
-		def block():
-			return [left, *(f"\t{line}" for line in text), right]
-		
-		if force_new_line:
-			return block()
-		
-		match len(text):
-			case 0:
-				return [left + right]
-			case 1:
-				return [left + text[0] + right]
-			case _:
-				return block()
-	
-	@staticmethod
-	def _JoinText(joiner: str, *text: list[str]) -> list[str]:
-		while text:
-			result, text = text[0], text[1:]
-			if result:
-				break
-		else:
-			result = []
-		
-		while text:
-			lines, text = text[0], text[1:]
-			if lines:
-				result = [
-					*result[:-1],
-					f"{result[-1]}{joiner}{lines[0]}",
-					*lines[1:],
-				]
-		return result
 
 
 class NodeInt(Node):
@@ -109,6 +40,9 @@ class NodeInt(Node):
 	def __repr__(self):
 		return self._GenStr(self.token.GetValue())
 	
+	def Accept(self, visitor):
+		return visitor.VisitInt(self)
+	
 	def Eval(self, ctx):
 		return int(self.token.GetValue()), ControlState.PASS
 	
@@ -117,9 +51,6 @@ class NodeInt(Node):
 	
 	def Unwind(self, val, ctx):
 		assert isinstance(val, int) and val == int(self.token.GetValue())
-	
-	def GenCode(self):
-		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeLabel(Node):
@@ -128,6 +59,9 @@ class NodeLabel(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetValue()))
+	
+	def Accept(self, visitor):
+		return visitor.VisitLabel(self)
 	
 	def Eval(self, ctx):
 		val = ctx.Resolve(self.token.GetValue())
@@ -139,9 +73,6 @@ class NodeLabel(Node):
 	
 	def Unwind(self, val, ctx):
 		ctx.Update(self.token.GetValue(), val)
-	
-	def GenCode(self):
-		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeStr(Node):
@@ -151,14 +82,14 @@ class NodeStr(Node):
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetValue()))
 	
+	def Accept(self, visitor):
+		return visitor.VisitStr(self)
+	
 	def Eval(self, ctx):
 		return self.token.GetValue(), ControlState.PASS
 	
 	def Unwind(self, val, ctx):
 		assert isinstance(val, str) and val == self.token.GetValue()
-	
-	def GenCode(self):
-		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeBool(Node):
@@ -168,6 +99,9 @@ class NodeBool(Node):
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetValue()))
 	
+	def Accept(self, visitor):
+		return visitor.VisitBool(self)
+	
 	def Eval(self, ctx):
 		return self._GetVal(), ControlState.PASS
 	
@@ -176,9 +110,6 @@ class NodeBool(Node):
 	
 	def Unwind(self, val, ctx):
 		assert isinstance(val, bool) and val == self._GetVal()
-	
-	def GenCode(self):
-		return self._AppendAttrText([self.token.GetValue()])
 
 
 class NodeCompound(Node):
@@ -187,6 +118,9 @@ class NodeCompound(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
+	
+	def Accept(self, visitor):
+		return visitor.VisitCompound(self)
 	
 	def Eval(self, ctx):
 		scope = EvaluationContext.Nest(ctx)
@@ -208,11 +142,6 @@ class NodeCompound(Node):
 			if ctrl is not ControlState.PASS:
 				break
 		return val, ctrl
-	
-	def GenCode(self):
-		lines = [line for node in self.nodes for line in self._SuffixText(";", node.GenCode())]
-		lines = self._EncloseText("{", "}", lines, force_new_line=True)
-		return self._AppendAttrText(lines)
 
 
 class NodeDecl(Node):
@@ -222,6 +151,9 @@ class NodeDecl(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.var}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitDecl(self)
+	
 	def Eval(self, ctx):
 		self.var.Decl(ctx)
 		return None, ControlState.PASS
@@ -229,11 +161,6 @@ class NodeDecl(Node):
 	def Unwind(self, val, ctx):
 		self.var.Decl(ctx)
 		self.var.Unwind(val, ctx)
-	
-	def GenCode(self):
-		lines = self.var.GenCode()
-		lines = self._PrefixText("let ", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeAssign(Node):
@@ -243,6 +170,9 @@ class NodeAssign(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.var}, {self.expr}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitAssign(self)
 	
 	def Eval(self, ctx):
 		val, ctrl = self.expr.Eval(ctx)
@@ -263,10 +193,6 @@ class NodeAssign(Node):
 		data, ctrl = self.var.var.Eval(scope)
 		assert ctrl is ControlState.PASS
 		self.expr.Unwind(data, ctx)
-	
-	def GenCode(self):
-		lines = self._JoinText(" = ", self.var.GenCode(), self.expr.GenCode())
-		return self._AppendAttrText(lines)
 
 
 class NodeFunc(Node):
@@ -277,6 +203,9 @@ class NodeFunc(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitFunc(self)
+	
 	def Eval(self, ctx):
 		def func(arg):
 			scope = EvaluationContext.Nest(ctx)
@@ -286,11 +215,6 @@ class NodeFunc(Node):
 			assert ctrl in (ControlState.PASS, ControlState.RETURN)
 			return val, ControlState.PASS
 		return func, ControlState.PASS
-	
-	def GenCode(self):
-		lines = self._JoinText(" -> ", self.param.GenCode(), self.body.GenCode())
-		lines[0] = f"fn {lines[0]}"
-		return self._AppendAttrText(lines)
 
 
 class NodeTemplate(Node):
@@ -301,6 +225,9 @@ class NodeTemplate(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitTemplate(self)
+	
 	def Eval(self, ctx):
 		def tmplt(arg):
 			scope = EvaluationContext.Nest(ctx)
@@ -310,11 +237,6 @@ class NodeTemplate(Node):
 			assert ctrl in (ControlState.PASS, ControlState.RETURN)
 			return val, ControlState.PASS
 		return tmplt, ControlState.PASS
-	
-	def GenCode(self):
-		lines = self._JoinText(" #> ", self.param.GenCode(), self.body.GenCode())
-		lines[0] = f"template {lines[0]}"
-		return self._AppendAttrText(lines)
 
 
 class NodeApply(Node):
@@ -324,6 +246,9 @@ class NodeApply(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.func}, {self.arg}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitApply(self)
 	
 	def Eval(self, ctx):
 		func, ctrl = self.func.Eval(ctx)
@@ -335,10 +260,6 @@ class NodeApply(Node):
 			return arg, ctrl
 		
 		return func(arg)
-	
-	def GenCode(self):
-		lines = self._JoinText(" ", self.func.GenCode(), self.arg.GenCode())
-		return self._AppendAttrText(lines)
 
 
 class NodeUnion(Node):
@@ -348,19 +269,11 @@ class NodeUnion(Node):
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
+	def Accept(self, visitor):
+		return visitor.VisitUnion(self)
+	
 	def Eval(self, ctx):
 		raise NotImplementedError("Try to evaluate union expression")
-	
-	def GenCode(self):
-		elements = [node.GenCode() for node in self.nodes]
-		if all(len(lines) == 1 for lines in elements):
-			lines = ["|".join(lines[0] for lines in elements)]
-			if len(elements) == 1:
-				lines[0] += "|"
-		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText("|", lines)]
-		lines = self._EncloseText("(", ")", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeTuple(Node):
@@ -369,6 +282,9 @@ class NodeTuple(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
+	
+	def Accept(self, visitor):
+		return visitor.VisitTuple(self)
 	
 	def Eval(self, ctx):
 		nodes = []
@@ -389,17 +305,6 @@ class NodeTuple(Node):
 		assert len(val) == len(self.nodes)
 		for i, node in enumerate(self.nodes):
 			node.Unwind(val[i], ctx)
-	
-	def GenCode(self):
-		elements = [node.GenCode() for node in self.nodes]
-		if all(len(lines) == 1 for lines in elements):
-			lines = [", ".join(lines[0] for lines in elements)]
-			if len(elements) == 1:
-				lines[0] += ","
-		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(",", lines)]
-		lines = self._EncloseText("(", ")", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeStruct(Node):
@@ -408,6 +313,9 @@ class NodeStruct(Node):
 	
 	def __repr__(self):
 		return self._GenStr(repr(self.fields)[1:-2])
+	
+	def Accept(self, visitor):
+		return visitor.VisitStruct(self)
 	
 	def Eval(self, ctx):
 		scope = EvaluationContext.Nest(ctx)
@@ -427,15 +335,6 @@ class NodeStruct(Node):
 		for field in self.fields:
 			assert isinstance(field, NodeAssign)
 			field.Unwind(val, ctx)
-	
-	def GenCode(self):
-		elements = [field.GenCode() for field in self.fields]
-		if all(len(lines) == 1 for lines in elements):
-			lines = ["; ".join(lines[0] for lines in elements)]
-		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(";", lines)]
-		lines = self._EncloseText(".{", "}", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeBinaryOp(Node):
@@ -446,6 +345,9 @@ class NodeBinaryOp(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.op.GetValue()}, {self.left}, {self.right}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitBinaryOp(self)
 	
 	def Eval(self, ctx):
 		x, ctrl = self.left.Eval(ctx)
@@ -488,11 +390,6 @@ class NodeBinaryOp(Node):
 				return x and y
 			case _:
 				raise ValueError(f"Unknown operator: {self.op}")
-	
-	def GenCode(self):
-		lines = self._JoinText(f" {self.op.GetValue()} ", self.left.GenCode(), self.right.GenCode())
-		lines = self._EncloseText("(", ")", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeUnaryOp(Node):
@@ -502,6 +399,9 @@ class NodeUnaryOp(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.op}, {self.node}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitUnaryOp(self)
 	
 	def Eval(self, ctx):
 		val, ctrl = self.node.Eval(ctx)
@@ -519,11 +419,6 @@ class NodeUnaryOp(Node):
 				return not val
 			case _:
 				raise ValueError(f"Unknown operator: {self.op}")
-	
-	def GenCode(self):
-		val = self.node.GenCode()
-		lines = [f"{self.op.GetValue()}{val[0]}", *val[1:]]
-		return self._AppendAttrText(lines)
 
 
 class NodeAccess(Node):
@@ -534,6 +429,9 @@ class NodeAccess(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.obj}, {self.field}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitAccess(self)
+	
 	def Eval(self, ctx):
 		obj, ctrl = self.obj.Eval(ctx)
 		if ctrl is not ControlState.PASS:
@@ -541,12 +439,6 @@ class NodeAccess(Node):
 		
 		assert isinstance(self.field, NodeLabel)
 		return getattr(obj, self.field.token.GetValue())
-	
-	def GenCode(self):
-		obj = self.obj.GenCode()
-		field = self.field.GenCode()
-		lines = self._JoinText(".", obj, field)
-		return self._AppendAttrText(lines)
 
 
 class NodeIndex(Node):
@@ -556,6 +448,9 @@ class NodeIndex(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.obj}, {self.index}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitIndex(self)
 	
 	def Eval(self, ctx):
 		obj, ctrl = self.obj.Eval(ctx)
@@ -567,12 +462,6 @@ class NodeIndex(Node):
 			return idx, ctrl
 		
 		return obj[idx], ControlState.PASS
-	
-	def GenCode(self):
-		val = self.obj.GenCode()
-		index = self.index.GenCode()
-		lines = self._JoinText("", val, self._EncloseText("[", "]", index))
-		return self._AppendAttrText(lines)
 
 
 class NodeReturn(Node):
@@ -582,14 +471,12 @@ class NodeReturn(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.expr}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitReturn(self)
+	
 	def Eval(self, ctx):
 		val, ctrl = self.expr.Eval(ctx)
 		return val, ControlState.RETURN if ctrl is ControlState.PASS else ctrl
-	
-	def GenCode(self):
-		expr = self.expr.GenCode()
-		lines = self._JoinText(" ", ["return"], expr)
-		return self._AppendAttrText(lines)
 
 
 class NodeBreak(Node):
@@ -599,25 +486,23 @@ class NodeBreak(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.expr}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitBreak(self)
+	
 	def Eval(self, ctx):
 		val, ctrl = self.expr.Eval(ctx)
 		return val, ControlState.BREAK_LOOP if ctrl is ControlState.PASS else ctrl
-	
-	def GenCode(self):
-		expr = self.expr.GenCode()
-		lines = self._JoinText(" ", ["break"], expr)
-		return self._AppendAttrText(lines)
 
 
 class NodeContinue(Node):
 	def __repr__(self):
 		return self._GenStr("")
 	
+	def Accept(self, visitor):
+		return visitor.VisitContinue(self)
+	
 	def Eval(self, ctx):
 		return None, ControlState.CONT_LOOP
-	
-	def GenCode(self):
-		return self._AppendAttrText(["continue"])
 
 
 class NodeIfElse(Node):
@@ -629,18 +514,14 @@ class NodeIfElse(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitIfElse(self)
+	
 	def Eval(self, ctx):
 		scope = EvaluationContext.Nest(ctx)
 		cond, ctrl = self.cond.Eval(scope)
 		assert ctrl is ControlState.PASS
 		return self.true_branch.Eval(scope) if cond else self.false_branch.Eval(ctx)
-	
-	def GenCode(self):
-		cond = self.cond.GenCode()
-		true_branch = self.true_branch.GenCode()
-		false_branch = self.false_branch.GenCode()
-		lines = self._JoinText(" ", ["if"], cond, true_branch, ["else"], false_branch)
-		return self._AppendAttrText(lines)
 
 
 class NodeWhileElse(Node):
@@ -651,6 +532,9 @@ class NodeWhileElse(Node):
 	
 	def __repr__(self):
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitWhileElse(self)
 	
 	def Eval(self, ctx):
 		scope = EvaluationContext.Nest(ctx)
@@ -669,13 +553,6 @@ class NodeWhileElse(Node):
 					return val, ControlState.PASS
 				case ControlState.PASS | ControlState.CONT_LOOP:
 					pass
-	
-	def GenCode(self):
-		cond = self.cond.GenCode()
-		loop_body = self.loop_body.GenCode()
-		else_branch = self.else_branch.GenCode()
-		lines = self._JoinText(" ", ["while"], cond, loop_body, ["else"], else_branch)
-		return self._AppendAttrText(lines)
 
 
 class NodeForElse(Node):
@@ -688,17 +565,12 @@ class NodeForElse(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitForElse(self)
+	
 	def Eval(self, ctx):
 		# FIXME
 		return super().Eval(ctx)
-	
-	def GenCode(self):
-		iterable = self.iterable.GenCode()
-		var = self.var.GenCode()
-		loop_body = self.loop_body.GenCode()
-		else_branch = self.else_branch.GenCode()
-		lines = self._JoinText(" ", ["for"], iterable, var, loop_body, ["else"], else_branch)
-		return self._AppendAttrText(lines)
 
 
 class NodeNamedTuple(Node):
@@ -708,13 +580,11 @@ class NodeNamedTuple(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitNamedTuple(self)
+	
 	def Eval(self, ctx):
 		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
-	
-	def GenCode(self):
-		lines = self.body.GenCode()
-		lines = self._PrefixText("tuple ", lines)
-		return self._AppendAttrText(lines)
 
 
 class NodeNamedStruct(Node):
@@ -724,10 +594,85 @@ class NodeNamedStruct(Node):
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
 	
+	def Accept(self, visitor):
+		return visitor.VisitNamedStruct(self)
+	
 	def Eval(self, ctx):
 		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
+
+
+class Visitor[T]:
+	def VisitInt(self, node: NodeInt) -> T:
+		raise NotImplementedError
 	
-	def GenCode(self):
-		lines = self.body.GenCode()
-		lines = self._PrefixText("struct ", lines)
-		return self._AppendAttrText(lines)
+	def VisitLabel(self, node: NodeLabel) -> T:
+		raise NotImplementedError
+	
+	def VisitStr(self, node: NodeStr) -> T:
+		raise NotImplementedError
+	
+	def VisitBool(self, node: NodeBool) -> T:
+		raise NotImplementedError
+	
+	def VisitCompound(self, node: NodeCompound) -> T:
+		raise NotImplementedError
+	
+	def VisitDecl(self, node: NodeDecl) -> T:
+		raise NotImplementedError
+	
+	def VisitAssign(self, node: NodeAssign) -> T:
+		raise NotImplementedError
+	
+	def VisitFunc(self, node: NodeFunc) -> T:
+		raise NotImplementedError
+	
+	def VisitTemplate(self, node: NodeTemplate) -> T:
+		raise NotImplementedError
+	
+	def VisitApply(self, node: NodeApply) -> T:
+		raise NotImplementedError
+	
+	def VisitUnion(self, node: NodeUnion) -> T:
+		raise NotImplementedError
+	
+	def VisitTuple(self, node: NodeTuple) -> T:
+		raise NotImplementedError
+	
+	def VisitStruct(self, node: NodeStruct) -> T:
+		raise NotImplementedError
+	
+	def VisitBinaryOp(self, node: NodeBinaryOp) -> T:
+		raise NotImplementedError
+	
+	def VisitUnaryOp(self, node: NodeUnaryOp) -> T:
+		raise NotImplementedError
+	
+	def VisitAccess(self, node: NodeAccess) -> T:
+		raise NotImplementedError
+	
+	def VisitIndex(self, node: NodeIndex) -> T:
+		raise NotImplementedError
+	
+	def VisitReturn(self, node: NodeReturn) -> T:
+		raise NotImplementedError
+	
+	def VisitBreak(self, node: NodeBreak) -> T:
+		raise NotImplementedError
+	
+	def VisitContinue(self, node: NodeContinue) -> T:
+		raise NotImplementedError
+	
+	def VisitIfElse(self, node: NodeIfElse) -> T:
+		raise NotImplementedError
+	
+	def VisitWhileElse(self, node: NodeWhileElse) -> T:
+		raise NotImplementedError
+	
+	def VisitForElse(self, node: NodeForElse) -> T:
+		raise NotImplementedError
+	
+	def VisitNamedTuple(self, node: NodeNamedTuple) -> T:
+		raise NotImplementedError
+	
+	def VisitNamedStruct(self, node: NodeNamedStruct) -> T:
+		raise NotImplementedError

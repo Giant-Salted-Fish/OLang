@@ -1,6 +1,7 @@
 from scanner import Scanner
 from parser import Syntax
 from interpreter import EvaluationContext
+from printer import ToOLangCode
 import lang_spec
 
 
@@ -12,7 +13,7 @@ if __name__ == "__main__":
 	syntax = Syntax.Build(lang_spec.SYNTAX_RULES, lang_spec.TERMINALS.__contains__)
 	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
 	print("===== Reproduced Source Code (May not be 100%% correct) =====")
-	print("\n".join(ast.GenCode()))
+	print("\n".join(ast.Accept(ToOLangCode())))
 	print("")
 	
 	parser = syntax.BuildLR1Parser()
