@@ -1,6 +1,5 @@
-from typing import Self, Any
+from typing import Self
 from scanner import Token
-from interpreter import EvaluationContext, ControlState
 
 
 class Node:
@@ -18,15 +17,6 @@ class Node:
 		self.suffix = self.suffix + attr
 		return self
 	
-	def Eval(self, ctx: EvaluationContext) -> tuple[Any, ControlState]:
-		raise NotImplementedError
-	
-	def Decl(self, ctx: EvaluationContext) -> None:
-		raise NotImplementedError
-	
-	def Unwind(self, val: Any, ctx: EvaluationContext) -> None:
-		raise NotImplementedError
-	
 	def _GenStr(self, fields: str) -> str:
 		pre = f", prefix={';'.join(str(attr) for attr in self.prefix)}" if self.prefix else ""
 		suf = f", suffix={';'.join(str(attr) for attr in self.suffix)}" if self.suffix else ""
@@ -38,19 +28,10 @@ class NodeInt(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self._GenStr(self.token.GetValue())
+		return self._GenStr(self.token.GetText())
 	
 	def Accept(self, visitor):
 		return visitor.VisitInt(self)
-	
-	def Eval(self, ctx):
-		return int(self.token.GetValue()), ControlState.PASS
-	
-	def Decl(self, ctx):
-		pass
-	
-	def Unwind(self, val, ctx):
-		assert isinstance(val, int) and val == int(self.token.GetValue())
 
 
 class NodeLabel(Node):
@@ -58,21 +39,10 @@ class NodeLabel(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self._GenStr(repr(self.token.GetValue()))
+		return self._GenStr(repr(self.token.GetText()))
 	
 	def Accept(self, visitor):
 		return visitor.VisitLabel(self)
-	
-	def Eval(self, ctx):
-		val = ctx.Resolve(self.token.GetValue())
-		assert val is not None
-		return val, ControlState.PASS
-	
-	def Decl(self, ctx):
-		ctx.Push(self.token.GetValue(), None)
-	
-	def Unwind(self, val, ctx):
-		ctx.Update(self.token.GetValue(), val)
 
 
 class NodeStr(Node):
@@ -80,16 +50,10 @@ class NodeStr(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self._GenStr(repr(self.token.GetValue()))
+		return self._GenStr(repr(self.token.GetText()))
 	
 	def Accept(self, visitor):
 		return visitor.VisitStr(self)
-	
-	def Eval(self, ctx):
-		return self.token.GetValue(), ControlState.PASS
-	
-	def Unwind(self, val, ctx):
-		assert isinstance(val, str) and val == self.token.GetValue()
 
 
 class NodeBool(Node):
@@ -97,19 +61,10 @@ class NodeBool(Node):
 		self.token = token
 	
 	def __repr__(self):
-		return self._GenStr(repr(self.token.GetValue()))
+		return self._GenStr(repr(self.token.GetText()))
 	
 	def Accept(self, visitor):
 		return visitor.VisitBool(self)
-	
-	def Eval(self, ctx):
-		return self._GetVal(), ControlState.PASS
-	
-	def _GetVal(self):
-		return self.token.GetValue().lower() == "true"
-	
-	def Unwind(self, val, ctx):
-		assert isinstance(val, bool) and val == self._GetVal()
 
 
 class NodeCompound(Node):
@@ -121,27 +76,6 @@ class NodeCompound(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitCompound(self)
-	
-	def Eval(self, ctx):
-		scope = EvaluationContext.Nest(ctx)
-		result = self.RawEval(scope)
-		return result
-	
-	def Decl(self, ctx):
-		assert len(self.nodes) == 1, "Declare compound node with more than one statement"
-		self.nodes[0].Decl(ctx)
-	
-	def Unwind(self, val, ctx):
-		assert len(self.nodes) == 1, "Unwind compound node with more than one statement"
-		self.nodes[0].Unwind(val, ctx)
-	
-	def RawEval(self, ctx: EvaluationContext) -> tuple[Any, ControlState]:
-		val, ctrl = (), ControlState.PASS
-		for node in self.nodes:
-			val, ctrl = node.Eval(ctx)
-			if ctrl is not ControlState.PASS:
-				break
-		return val, ctrl
 
 
 class NodeDecl(Node):
@@ -153,14 +87,6 @@ class NodeDecl(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitDecl(self)
-	
-	def Eval(self, ctx):
-		self.var.Decl(ctx)
-		return None, ControlState.PASS
-	
-	def Unwind(self, val, ctx):
-		self.var.Decl(ctx)
-		self.var.Unwind(val, ctx)
 
 
 class NodeAssign(Node):
@@ -173,26 +99,6 @@ class NodeAssign(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitAssign(self)
-	
-	def Eval(self, ctx):
-		val, ctrl = self.expr.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return val, ctrl
-		
-		self.var.Unwind(val, ctx)
-		return val, ControlState.PASS
-	
-	def Decl(self, ctx):
-		"""For struct unwind."""
-		self.expr.Decl(ctx)
-	
-	def Unwind(self, val, ctx):
-		"""For struct unwind."""
-		assert isinstance(self.var, NodeDecl)
-		scope = EvaluationContext(None, [], val)
-		data, ctrl = self.var.var.Eval(scope)
-		assert ctrl is ControlState.PASS
-		self.expr.Unwind(data, ctx)
 
 
 class NodeFunc(Node):
@@ -205,16 +111,6 @@ class NodeFunc(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitFunc(self)
-	
-	def Eval(self, ctx):
-		def func(arg):
-			scope = EvaluationContext.Nest(ctx)
-			self.param.Decl(scope)
-			self.param.Unwind(arg, scope)
-			val, ctrl = self.body.RawEval(scope)
-			assert ctrl in (ControlState.PASS, ControlState.RETURN)
-			return val, ControlState.PASS
-		return func, ControlState.PASS
 
 
 class NodeTemplate(Node):
@@ -227,16 +123,6 @@ class NodeTemplate(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitTemplate(self)
-	
-	def Eval(self, ctx):
-		def tmplt(arg):
-			scope = EvaluationContext.Nest(ctx)
-			self.param.Decl(scope)
-			self.param.Unwind(arg, scope)
-			val, ctrl = self.body.RawEval(scope)
-			assert ctrl in (ControlState.PASS, ControlState.RETURN)
-			return val, ControlState.PASS
-		return tmplt, ControlState.PASS
 
 
 class NodeApply(Node):
@@ -249,17 +135,6 @@ class NodeApply(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitApply(self)
-	
-	def Eval(self, ctx):
-		func, ctrl = self.func.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return func, ctrl
-		
-		arg, ctrl = self.arg.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return arg, ctrl
-		
-		return func(arg)
 
 
 class NodeUnion(Node):
@@ -271,9 +146,6 @@ class NodeUnion(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitUnion(self)
-	
-	def Eval(self, ctx):
-		raise NotImplementedError("Try to evaluate union expression")
 
 
 class NodeTuple(Node):
@@ -285,26 +157,6 @@ class NodeTuple(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitTuple(self)
-	
-	def Eval(self, ctx):
-		nodes = []
-		for node in self.nodes:
-			val, ctrl = node.Eval(ctx)
-			if ctrl is not ControlState.PASS:
-				return val, ctrl
-			nodes.append(val)
-		
-		return tuple(nodes), ControlState.PASS
-	
-	def Decl(self, ctx):
-		for node in self.nodes:
-			node.Decl(ctx)
-	
-	def Unwind(self, val, ctx):
-		assert isinstance(val, tuple), f"Expected tuple, got {type(val)}"
-		assert len(val) == len(self.nodes)
-		for i, node in enumerate(self.nodes):
-			node.Unwind(val[i], ctx)
 
 
 class NodeStruct(Node):
@@ -316,25 +168,6 @@ class NodeStruct(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitStruct(self)
-	
-	def Eval(self, ctx):
-		scope = EvaluationContext.Nest(ctx)
-		for node in self.fields:
-			val, ctrl = node.Eval(scope)
-			if ctrl is not ControlState.PASS:
-				return val, ctrl
-		return scope.GetLocals(), ControlState.PASS
-	
-	def Decl(self, ctx):
-		for field in self.fields:
-			assert isinstance(field, NodeAssign)
-			field.Decl(ctx)
-	
-	def Unwind(self, val, ctx):
-		assert isinstance(val, dict), f"Expect dict (struct), got {type(val)}"
-		for field in self.fields:
-			assert isinstance(field, NodeAssign)
-			field.Unwind(val, ctx)
 
 
 class NodeBinaryOp(Node):
@@ -344,52 +177,10 @@ class NodeBinaryOp(Node):
 		self.right = right
 	
 	def __repr__(self):
-		return self._GenStr(f"{self.op.GetValue()}, {self.left}, {self.right}")
+		return self._GenStr(f"{self.op.GetText()}, {self.left}, {self.right}")
 	
 	def Accept(self, visitor):
 		return visitor.VisitBinaryOp(self)
-	
-	def Eval(self, ctx):
-		x, ctrl = self.left.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return x, ctrl
-		
-		y, ctrl = self.right.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return y, ctrl
-		
-		return self._Execute(x, y), ControlState.PASS
-	
-	def _Execute(self, x, y):
-		match self.op.GetValue():
-			case "+":
-				return x + y
-			case "-":
-				return x - y
-			case "*":
-				return x * y
-			case "/":
-				return x / y
-			case "%":
-				return x % y
-			case "==":
-				return x == y
-			case "!=":
-				return x != y
-			case "<=":
-				return x <= y
-			case ">=":
-				return x >= y
-			case "<":
-				return x < y
-			case ">":
-				return x > y
-			case "||":
-				return x or y
-			case "&&":
-				return x and y
-			case _:
-				raise ValueError(f"Unknown operator: {self.op}")
 
 
 class NodeUnaryOp(Node):
@@ -402,23 +193,6 @@ class NodeUnaryOp(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitUnaryOp(self)
-	
-	def Eval(self, ctx):
-		val, ctrl = self.node.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return val, ctrl
-		return self._Execute(val), ControlState.PASS
-	
-	def _Execute(self, val):
-		match self.op.GetValue():
-			case "+":
-				return val
-			case "-":
-				return -val
-			case "!":
-				return not val
-			case _:
-				raise ValueError(f"Unknown operator: {self.op}")
 
 
 class NodeAccess(Node):
@@ -431,14 +205,6 @@ class NodeAccess(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitAccess(self)
-	
-	def Eval(self, ctx):
-		obj, ctrl = self.obj.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return obj, ctrl
-		
-		assert isinstance(self.field, NodeLabel)
-		return getattr(obj, self.field.token.GetValue())
 
 
 class NodeIndex(Node):
@@ -451,17 +217,6 @@ class NodeIndex(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitIndex(self)
-	
-	def Eval(self, ctx):
-		obj, ctrl = self.obj.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return obj, ctrl
-		
-		idx, ctrl = self.index.Eval(ctx)
-		if ctrl is not ControlState.PASS:
-			return idx, ctrl
-		
-		return obj[idx], ControlState.PASS
 
 
 class NodeReturn(Node):
@@ -473,10 +228,6 @@ class NodeReturn(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitReturn(self)
-	
-	def Eval(self, ctx):
-		val, ctrl = self.expr.Eval(ctx)
-		return val, ControlState.RETURN if ctrl is ControlState.PASS else ctrl
 
 
 class NodeBreak(Node):
@@ -488,10 +239,6 @@ class NodeBreak(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitBreak(self)
-	
-	def Eval(self, ctx):
-		val, ctrl = self.expr.Eval(ctx)
-		return val, ControlState.BREAK_LOOP if ctrl is ControlState.PASS else ctrl
 
 
 class NodeContinue(Node):
@@ -500,9 +247,6 @@ class NodeContinue(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitContinue(self)
-	
-	def Eval(self, ctx):
-		return None, ControlState.CONT_LOOP
 
 
 class NodeIfElse(Node):
@@ -516,12 +260,6 @@ class NodeIfElse(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitIfElse(self)
-	
-	def Eval(self, ctx):
-		scope = EvaluationContext.Nest(ctx)
-		cond, ctrl = self.cond.Eval(scope)
-		assert ctrl is ControlState.PASS
-		return self.true_branch.Eval(scope) if cond else self.false_branch.Eval(ctx)
 
 
 class NodeWhileElse(Node):
@@ -535,24 +273,6 @@ class NodeWhileElse(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitWhileElse(self)
-	
-	def Eval(self, ctx):
-		scope = EvaluationContext.Nest(ctx)
-		while True:
-			cond, ctrl = self.cond.Eval(scope)
-			assert ctrl is ControlState.PASS
-			
-			if not cond:
-				return self.else_branch.Eval(ctx)
-			
-			val, ctrl = self.loop_body.Eval(scope)
-			match ctrl:
-				case ControlState.RETURN:
-					return val, ControlState.RETURN
-				case ControlState.BREAK_LOOP:
-					return val, ControlState.PASS
-				case ControlState.PASS | ControlState.CONT_LOOP:
-					pass
 
 
 class NodeForElse(Node):
@@ -567,10 +287,6 @@ class NodeForElse(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitForElse(self)
-	
-	def Eval(self, ctx):
-		# FIXME
-		return super().Eval(ctx)
 
 
 class NodeNamedTuple(Node):
@@ -582,9 +298,6 @@ class NodeNamedTuple(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitNamedTuple(self)
-	
-	def Eval(self, ctx):
-		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
 
 
 class NodeNamedStruct(Node):
@@ -596,9 +309,6 @@ class NodeNamedStruct(Node):
 	
 	def Accept(self, visitor):
 		return visitor.VisitNamedStruct(self)
-	
-	def Eval(self, ctx):
-		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
 
 
 class Visitor[T]:

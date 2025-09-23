@@ -3,19 +3,19 @@ import lang_ast
 
 class ToOLangCode(lang_ast.Visitor[list[str]]):
 	def VisitInt(self, node):
-		lines = [node.token.GetValue()]
+		lines = [node.token.GetText()]
 		return self._AppendAttrText(node, lines)
 	
 	def VisitLabel(self, node):
-		lines = [node.token.GetValue()]
+		lines = [node.token.GetText()]
 		return self._AppendAttrText(node, lines)
 	
 	def VisitStr(self, node):
-		lines = [node.token.GetValue()]
+		lines = [node.token.GetText()]
 		return self._AppendAttrText(node, lines)
 	
 	def VisitBool(self, node):
-		lines = [node.token.GetValue()]
+		lines = [node.token.GetText()]
 		return self._AppendAttrText(node, lines)
 	
 	def VisitCompound(self, node):
@@ -88,13 +88,13 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	def VisitBinaryOp(self, node):
 		lhs = node.left.Accept(self)
 		rhs = node.right.Accept(self)
-		lines = self._JoinText(f" {node.op.GetValue()} ", lhs, rhs)
+		lines = self._JoinText(f" {node.op.GetText()} ", lhs, rhs)
 		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(node, lines)
 	
 	def VisitUnaryOp(self, node):
 		val = node.node.Accept(self)
-		lines = [f"{node.op.GetValue()}{val[0]}", *val[1:]]
+		lines = [f"{node.op.GetText()}{val[0]}", *val[1:]]
 		return self._AppendAttrText(node, lines)
 	
 	def VisitAccess(self, node):

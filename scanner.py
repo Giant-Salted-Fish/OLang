@@ -13,7 +13,7 @@ class Token[T]:
 	def GetType(self):
 		return self._type
 	
-	def GetValue(self):
+	def GetText(self):
 		return self._lines[self._line_num][self._col_idx:self._col_idx + self._token_len]
 	
 	def GetLineNum(self):
@@ -23,7 +23,7 @@ class Token[T]:
 		return self._col_idx + 1
 	
 	def __str__(self):
-		return f"Token(type={repr(self.GetType())}, value={repr(self.GetValue())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
+		return f"Token(type={repr(self.GetType())}, value={repr(self.GetText())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
 
 
 class Scanner[T]:
