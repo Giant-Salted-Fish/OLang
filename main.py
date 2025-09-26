@@ -1,6 +1,6 @@
 from scanner import Scanner
 from parser import Syntax
-from interpreter import Context, Evaluate
+from interpreter import Environment, Evaluate
 from printer import ToOLangCode
 import lang_spec
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 	print(ast2)
 	print("")
 	
-	scope = Context.New()
+	scope = Environment.New()
 	_, _ = Evaluate(scope).EvalCompound(ast)
 	func = scope.Resolve("test")
 	arg = 5, 7

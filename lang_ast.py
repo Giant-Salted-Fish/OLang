@@ -170,14 +170,27 @@ class NodeStruct(Node):
 		return visitor.VisitStruct(self)
 
 
-class NodeBinaryOp(Node):
-	def __init__(self, op: Token, left: Node, right: Node):
+class NodeLogicalOp(Node):
+	def __init__(self, op: Token, lhs: Node, rhs: Node):
 		self.op = op
-		self.left = left
-		self.right = right
+		self.lhs = lhs
+		self.rhs = rhs
 	
 	def __repr__(self):
-		return self._GenStr(f"{self.op.GetText()}, {self.left}, {self.right}")
+		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
+	
+	def Accept(self, visitor):
+		return visitor.VisitLogicalOp(self)
+
+
+class NodeBinaryOp(Node):
+	def __init__(self, op: Token, lhs: Node, rhs: Node):
+		self.op = op
+		self.lhs = lhs
+		self.rhs = rhs
+	
+	def __repr__(self):
+		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
 	def Accept(self, visitor):
 		return visitor.VisitBinaryOp(self)
@@ -349,6 +362,9 @@ class Visitor[T]:
 		raise NotImplementedError
 	
 	def VisitStruct(self, node: NodeStruct) -> T:
+		raise NotImplementedError
+	
+	def VisitLogicalOp(self, node: NodeLogicalOp) -> T:
 		raise NotImplementedError
 	
 	def VisitBinaryOp(self, node: NodeBinaryOp) -> T:

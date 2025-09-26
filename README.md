@@ -1,6 +1,6 @@
 ### 关于 OLang
 
-OLang 是一款正在开发当中的实验性通用编程语言，主要用来测试我对编程语言语法的各种构想，顺便探索下类型系统、生命周期管理、模板元编程等相关内容。目前 OLang 的大部分语法结构已经基本确定，但在不可变性表达、泛型参数约束、模块导入导出等方面仍在推敲和修改当中，未来可能会有较大变化。OLang 当前主要使用 Python 3.13 开发，在安装好 Python 后即可运行项目中的 [`main.py`](/main.py) 脚本来编译和运行 [`test.olang`](/test.olang) 中的 OLang 测试代码。OLang 的语法规范详见 [`lang_spec.py`](/lang_spec.py)；解析 OLang 源码所使用的 LR(1) Parser 实现代码参见 [`parser.py`](/parser.py)。
+OLang 是一款正在开发当中的实验性通用编程语言，主要用来测试我对编程语言语法的各种构想，顺便探索下类型系统、生命周期管理、模板元编程等相关内容。目前 OLang 的大部分语法结构已经基本确定，但在不可变性表达、泛型参数约束、模块导入导出等方面仍在推敲和修改当中，未来可能会有较大变化。OLang 当前主要使用 Python 3.13 开发，在安装好 Python 后即可运行项目中的 [`main.py`](/main.py) 脚本来编译和运行 [`test.olang`](/test.olang) 中的 OLang 测试代码。OLang 的语法规范详见 [`lang_spec.py`](/lang_spec.py)；解析 OLang 源码所使用的 LR(1) Parser 代码参见 [`parser.py`](/parser.py)。
 
 ### 语法介绍
 

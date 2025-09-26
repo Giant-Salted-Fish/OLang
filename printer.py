@@ -85,9 +85,16 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		lines = self._EncloseText(".{", "}", lines)
 		return self._AppendAttrText(node, lines)
 	
+	def VisitLogicalOp(self, node):
+		lhs = node.lhs.Accept(self)
+		rhs = node.rhs.Accept(self)
+		lines = self._JoinText(f" {node.op.GetText()} ", lhs, rhs)
+		lines = self._EncloseText("(", ")", lines)
+		return self._AppendAttrText(node, lines)
+	
 	def VisitBinaryOp(self, node):
-		lhs = node.left.Accept(self)
-		rhs = node.right.Accept(self)
+		lhs = node.lhs.Accept(self)
+		rhs = node.rhs.Accept(self)
 		lines = self._JoinText(f" {node.op.GetText()} ", lhs, rhs)
 		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(node, lines)

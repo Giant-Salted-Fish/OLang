@@ -1,9 +1,9 @@
 from parser import Production
 from lang_ast import (
 	Node, NodeInt, NodeLabel, NodeStr, NodeBool, NodeCompound, NodeDecl, NodeAssign, NodeFunc,
-	NodeTemplate, NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeBinaryOp, NodeUnaryOp,
-	NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse, NodeWhileElse,
-	NodeForElse, NodeNamedTuple, NodeNamedStruct
+	NodeTemplate, NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeLogicalOp, NodeBinaryOp,
+	NodeUnaryOp, NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse,
+	NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
 from typing import Callable
 
@@ -185,12 +185,12 @@ SYNTAX_RULES = [
 	
 	# or: or || and
 	#   | and
-	("or", ("or", "||", "and"), lambda left, OR, right: NodeBinaryOp(OR, left, right)),
+	("or", ("or", "||", "and"), lambda left, OR, right: NodeLogicalOp(OR, left, right)),
 	("or", ("and",), lambda x: x),
 	
 	# and: and && eq
 	#    | eq
-	("and", ("and", "&&", "eq"), lambda left, AND, right: NodeBinaryOp(AND, left, right)),
+	("and", ("and", "&&", "eq"), lambda left, AND, right: NodeLogicalOp(AND, left, right)),
 	("and", ("eq",), lambda x: x),
 	
 	# eq: eq (==|!=) rel
