@@ -68,7 +68,7 @@ TOKEN_TYPES = [
 
 TERMINALS = set(t for t, _ in TOKEN_TYPES)
 
-SYNTAX_RULES = [
+SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("S", ("stmt_lst",), lambda lst: NodeCompound(*lst)),
 	
 	# stmt_lst: (norm_stmt|;) stmt_lst
@@ -298,7 +298,7 @@ SYNTAX_RULES = [
 	("(;|,)", (";",), lambda SEMI: SEMI),
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
-SYNTAX_RULES = [Production(*p) for p in SYNTAX_RULES]
+PRODUCTIONS: list[Production[str, Node]] = [Production(*p) for p in SYNTAX_RULES]
 
 
 def make_applied(

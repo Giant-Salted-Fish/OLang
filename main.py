@@ -3,14 +3,15 @@ from parser import Syntax
 from interpreter import Environment, Evaluate
 from printer import ToOLangCode
 import lang_spec
+import lang_ast
 
 
 if __name__ == "__main__":
 	with open("test.olang", "r", encoding="utf-8") as f:
 		source_code = f.read()
 	
-	scanner = Scanner.Build(lang_spec.TOKEN_TYPES)
-	syntax = Syntax.Build(lang_spec.SYNTAX_RULES, lang_spec.TERMINALS.__contains__)
+	scanner = Scanner[str].Build(lang_spec.TOKEN_TYPES)
+	syntax = Syntax[str, lang_ast.Node].Build(lang_spec.PRODUCTIONS, lang_spec.TERMINALS.__contains__)
 	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
 	print("===== Reproduced Source Code (May not be 100%% correct) =====")
 	print("\n".join(ast.Accept(ToOLangCode())))
@@ -27,6 +28,7 @@ if __name__ == "__main__":
 	print("")
 	
 	scope = Environment.New()
+	assert isinstance(ast, lang_ast.NodeCompound)
 	_, _ = Evaluate(scope).EvalCompound(ast)
 	func = scope.Resolve("test")
 	arg = 5, 7

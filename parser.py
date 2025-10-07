@@ -2,17 +2,17 @@ from scanner import Token
 from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence, Any
 
 
-class Production[T](NamedTuple):
+class Production[T, U](NamedTuple):
 	lhs: str
 	rhs: tuple[str | T, ...]
-	action: Callable
+	action: Callable[..., U]
 	
 	def __repr__(self):
 		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}"
 
 
-class Item[T](NamedTuple):
-	production: Production[T]
+class Item[T, U](NamedTuple):
+	production: Production[T, U]
 	dot_pos: int
 	lookahead: frozenset[T | None]
 	
@@ -20,11 +20,11 @@ class Item[T](NamedTuple):
 		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
 
 
-class Syntax[T]:
+class Syntax[T, U]:
 	def __init__(
 		self,
 		start_symbol: str,
-		symbol_2_production: dict[str, Collection[Production[T]]],
+		symbol_2_production: dict[str, Collection[Production[T, U]]],
 		is_terminal: Callable[[str | T], bool],
 		first_sets: dict[str, set[T]],
 		epsilons: Collection[str]
@@ -65,9 +65,9 @@ class Syntax[T]:
 	def BuildInitialState(self):
 		return self.ExpandState([(prod, 0, (None,)) for prod in self.GetProductionsOf(self._start_symbol)])
 	
-	def ExpandState(self, items: Iterable[tuple[Production[T], int, Iterable[T | None]]]):
-		new_state: dict[tuple[Production[T], int], set[T | None]] = {}
-		def expand_item(production: Production[T], dot_pos: int, lookahead: set[T | None]):
+	def ExpandState(self, items: Iterable[tuple[Production[T, U], int, Iterable[T | None]]]):
+		new_state: dict[tuple[Production[T, U], int], set[T | None]] = {}
+		def expand_item(production: Production[T, U], dot_pos: int, lookahead: set[T | None]):
 			if (production, dot_pos) in new_state:
 				prev_lookahead = new_state[production, dot_pos]
 				if prev_lookahead.issuperset(lookahead):
@@ -114,11 +114,11 @@ class Syntax[T]:
 		)
 	
 	def BuildLR1Parser(self):
-		state_table: dict[frozenset[Item[T]], int] = {}
+		state_table: dict[frozenset[Item[T, U]], int] = {}
 		shift_table: dict[tuple[int, T | None], int] = {}
-		reduce_table: dict[tuple[int, T | None], Production[T]] = {}
+		reduce_table: dict[tuple[int, T | None], Production[T, U]] = {}
 		goto_table: dict[tuple[int, str], int] = {}
-		def explore(state: frozenset[Item[T]]) -> int:
+		def explore(state: frozenset[Item[T, U]]) -> int:
 			if sid := state_table.get(state):
 				return sid
 			
@@ -165,9 +165,9 @@ class Syntax[T]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]):
+	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> U:
 		state_stack = [self.BuildInitialState()]
-		action_stack: list[Any] = []
+		action_stack: list[U | Token] = []
 		accept = False
 		for token in token_stream:
 			if accept:
@@ -225,10 +225,10 @@ class Syntax[T]:
 		
 		if not accept:
 			raise Exception("Not enough tokens")
-		return action_stack[-1]
+		return action_stack[-1]  # type: ignore
 	
 	@classmethod
-	def Build(cls, production_rules: Sequence[Production[T]], is_terminal: Callable[[str | T], bool]):
+	def Build(cls, production_rules: Sequence[Production[T, U]], is_terminal: Callable[[str | T], bool]):
 		symbol_2_production = {}
 		for prod in production_rules:
 			symbol_2_production.setdefault(prod.lhs, []).append(prod)
@@ -270,13 +270,13 @@ class Syntax[T]:
 		)
 
 
-class Parser[T]:
+class Parser[T, U]:
 	def __init__(
 		self,
 		syntax: Syntax,
-		state_table: Sequence[frozenset[Item[T]]],
+		state_table: Sequence[frozenset[Item[T, U]]],
 		shift_table: dict[tuple[int, T | None], int],
-		reduce_table: dict[tuple[int, T | None], Production[T]],
+		reduce_table: dict[tuple[int, T | None], Production[T, U]],
 		goto_table: dict[tuple[int, str], int]
 	):
 		self._syntax = syntax
@@ -288,9 +288,9 @@ class Parser[T]:
 	def __str__(self):
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
-	def Parse(self, token_stream: Iterator[Token[T]]):
+	def Parse(self, token_stream: Iterator[Token[T]]) -> U:
 		state_stack = [0]
-		action_stack: list[Any] = []
+		action_stack: list[U | Token] = []
 		accept = False
 		for token in token_stream:
 			if accept:
@@ -327,7 +327,7 @@ class Parser[T]:
 		
 		if not accept:
 			raise Exception("Not enough tokens")
-		return action_stack[-1]
+		return action_stack[-1]  # type: ignore
 	
 	def Serialize(self, line_writer: Callable[[str], None]):
 		pass
