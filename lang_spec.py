@@ -298,7 +298,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(;|,)", (";",), lambda SEMI: SEMI),
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
-PRODUCTIONS: list[Production[str, Node]] = [Production(*p) for p in SYNTAX_RULES]
+PRODUCTIONS: list[Production[str, str, Node]] = [Production(*p) for p in SYNTAX_RULES]
 
 
 def make_applied(

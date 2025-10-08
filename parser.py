@@ -1,18 +1,18 @@
 from scanner import Token
-from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence, Any
+from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence
 
 
-class Production[T, U](NamedTuple):
-	lhs: str
-	rhs: tuple[str | T, ...]
-	action: Callable[..., U]
+class Production[N, T, R](NamedTuple):
+	lhs: N
+	rhs: tuple[N | T, ...]
+	action: Callable[..., R]
 	
 	def __repr__(self):
 		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}"
 
 
-class Item[T, U](NamedTuple):
-	production: Production[T, U]
+class Item[N, T, R](NamedTuple):
+	production: Production[N, T, R]
 	dot_pos: int
 	lookahead: frozenset[T | None]
 	
@@ -20,14 +20,14 @@ class Item[T, U](NamedTuple):
 		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
 
 
-class Syntax[T, U]:
+class Syntax[N, T, R]:
 	def __init__(
 		self,
-		start_symbol: str,
-		symbol_2_production: dict[str, Collection[Production[T, U]]],
-		is_terminal: Callable[[str | T], bool],
-		first_sets: dict[str, set[T]],
-		epsilons: Collection[str]
+		start_symbol: N,
+		symbol_2_production: dict[N, Collection[Production[N, T, R]]],
+		is_terminal: Callable[[N | T], bool],
+		first_sets: dict[N, set[T]],
+		epsilons: Collection[N]
 	):
 		self._start_symbol = start_symbol
 		self._symbol_2_production = symbol_2_production
@@ -38,10 +38,10 @@ class Syntax[T, U]:
 	def GetStartSymbol(self):
 		return self._start_symbol
 	
-	def GetProductionsOf(self, lhs: str):
+	def GetProductionsOf(self, lhs: N):
 		return self._symbol_2_production[lhs]
 	
-	def AsTerminal(self, symbol: str | T) -> T | None:
+	def AsTerminal(self, symbol: N | T) -> T | None:
 		if self._is_terminal(symbol):
 			# If T can be str, we need a way to distinguish between terminals and non-terminals.
 			# We rely on is_terminal to do this, regardless of type.
@@ -49,25 +49,24 @@ class Syntax[T, U]:
 		else:
 			return None
 	
-	def AsNonTerminal(self, symbol: str | T) -> str | None:
+	def AsNonTerminal(self, symbol: N | T) -> N | None:
 		if self._is_terminal(symbol):
 			return None
 		else:
-			assert isinstance(symbol, str)
-			return symbol
+			return symbol  # type: ignore
 	
-	def GetFirstSet(self, symbol: str):
+	def GetFirstSet(self, symbol: N):
 		return self._first_sets[symbol]
 	
-	def CanProduceEpsilon(self, symbol: str):
+	def CanProduceEpsilon(self, symbol: N):
 		return symbol in self._epsilons
 	
 	def BuildInitialState(self):
 		return self.ExpandState([(prod, 0, (None,)) for prod in self.GetProductionsOf(self._start_symbol)])
 	
-	def ExpandState(self, items: Iterable[tuple[Production[T, U], int, Iterable[T | None]]]):
-		new_state: dict[tuple[Production[T, U], int], set[T | None]] = {}
-		def expand_item(production: Production[T, U], dot_pos: int, lookahead: set[T | None]):
+	def ExpandState(self, items: Iterable[tuple[Production[N, T, R], int, Iterable[T | None]]]):
+		new_state: dict[tuple[Production[N, T, R], int], set[T | None]] = {}
+		def expand_item(production: Production[N, T, R], dot_pos: int, lookahead: set[T | None]):
 			if (production, dot_pos) in new_state:
 				prev_lookahead = new_state[production, dot_pos]
 				if prev_lookahead.issuperset(lookahead):
@@ -85,14 +84,14 @@ class Syntax[T, U]:
 			if next_symbol is None:
 				return
 			
-			new_lookahead: set[T|None] = set()
+			new_lookahead: set[T | None] = set()
 			for i in range(dot_pos + 1, len(production.rhs)):
-				s = production.rhs[i]
-				if following := self.AsTerminal(s):
+				symbol = production.rhs[i]
+				if following := self.AsTerminal(symbol):
 					new_lookahead.add(following)
 					break
 				
-				following = self.AsNonTerminal(s)
+				following = self.AsNonTerminal(symbol)
 				assert following is not None
 				new_lookahead |= self.GetFirstSet(following)
 				if not self.CanProduceEpsilon(following):
@@ -114,11 +113,11 @@ class Syntax[T, U]:
 		)
 	
 	def BuildLR1Parser(self):
-		state_table: dict[frozenset[Item[T, U]], int] = {}
+		state_table: dict[frozenset[Item[N, T, R]], int] = {}
 		shift_table: dict[tuple[int, T | None], int] = {}
-		reduce_table: dict[tuple[int, T | None], Production[T, U]] = {}
-		goto_table: dict[tuple[int, str], int] = {}
-		def explore(state: frozenset[Item[T, U]]) -> int:
+		reduce_table: dict[tuple[int, T | None], Production[N, T, R]] = {}
+		goto_table: dict[tuple[int, N], int] = {}
+		def explore(state: frozenset[Item[N, T, R]]) -> int:
 			if sid := state_table.get(state):
 				return sid
 			
@@ -142,8 +141,9 @@ class Syntax[T, U]:
 				if following := self.AsTerminal(next_symbol):
 					shift_table[sid, following] = next_sid
 				else:
-					assert isinstance(next_symbol, str)
-					goto_table[sid, next_symbol] = next_sid
+					following = self.AsNonTerminal(next_symbol)
+					assert following is not None
+					goto_table[sid, following] = next_sid
 			
 			working_set = set(it for it in state if it.dot_pos == len(it.production.rhs))
 			while working_set:
@@ -165,9 +165,9 @@ class Syntax[T, U]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> U:
+	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [self.BuildInitialState()]
-		action_stack: list[U | Token] = []
+		action_stack: list[R | Token] = []
 		accept = False
 		for token in token_stream:
 			if accept:
@@ -181,9 +181,9 @@ class Syntax[T, U]:
 				state = state_stack[-1]
 				
 				new_items = tuple(
-					(it.production, it.dot_pos + 1, it.lookahead)
-					for it in state
-					if it.dot_pos < len(it.production.rhs) and it.production.rhs[it.dot_pos] == token.GetType()
+					(production, dot_pos + 1, lookahead)
+					for production, dot_pos, lookahead in state
+					if dot_pos < len(production.rhs) and production.rhs[dot_pos] == token.GetType()
 				)
 				if len(new_items) > 0:
 					new_state = self.ExpandState(new_items)
@@ -216,9 +216,9 @@ class Syntax[T, U]:
 				
 				state = state_stack[-1]
 				new_items = tuple(
-					(it.production, it.dot_pos + 1, it.lookahead)
-					for it in state
-					if it.dot_pos < len(it.production.rhs) and it.production.rhs[it.dot_pos] == reduce_rule.lhs
+					(production, dot_pos + 1, lookahead)
+					for production, dot_pos, lookahead in state
+					if dot_pos < len(production.rhs) and production.rhs[dot_pos] == reduce_rule.lhs
 				)
 				new_state = self.ExpandState(new_items)
 				state_stack.append(new_state)
@@ -228,12 +228,12 @@ class Syntax[T, U]:
 		return action_stack[-1]  # type: ignore
 	
 	@classmethod
-	def Build(cls, production_rules: Sequence[Production[T, U]], is_terminal: Callable[[str | T], bool]):
+	def Build(cls, production_rules: Sequence[Production[N, T, R]], is_terminal: Callable[[N | T], bool]):
 		symbol_2_production = {}
 		for prod in production_rules:
 			symbol_2_production.setdefault(prod.lhs, []).append(prod)
 		
-		epsilons = set()
+		epsilons = set()  # All non-terminals that can produce epsilon
 		while True:
 			size = len(epsilons)
 			for productions in symbol_2_production.values():
@@ -270,14 +270,14 @@ class Syntax[T, U]:
 		)
 
 
-class Parser[T, U]:
+class Parser[N, T, U]:
 	def __init__(
 		self,
 		syntax: Syntax,
-		state_table: Sequence[frozenset[Item[T, U]]],
+		state_table: Sequence[frozenset[Item[N, T, U]]],
 		shift_table: dict[tuple[int, T | None], int],
-		reduce_table: dict[tuple[int, T | None], Production[T, U]],
-		goto_table: dict[tuple[int, str], int]
+		reduce_table: dict[tuple[int, T | None], Production[N, T, U]],
+		goto_table: dict[tuple[int, N], int]
 	):
 		self._syntax = syntax
 		self._state_table = state_table

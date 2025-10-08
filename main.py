@@ -11,7 +11,7 @@ if __name__ == "__main__":
 		source_code = f.read()
 	
 	scanner = Scanner[str].Build(lang_spec.TOKEN_TYPES)
-	syntax = Syntax[str, lang_ast.Node].Build(lang_spec.PRODUCTIONS, lang_spec.TERMINALS.__contains__)
+	syntax = Syntax[str, str, lang_ast.Node].Build(lang_spec.PRODUCTIONS, lang_spec.TERMINALS.__contains__)
 	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
 	print("===== Reproduced Source Code (May not be 100%% correct) =====")
 	print("\n".join(ast.Accept(ToOLangCode())))
