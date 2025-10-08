@@ -41,19 +41,11 @@ class Syntax[N, T, R]:
 	def GetProductionsOf(self, lhs: N):
 		return self._symbol_2_production[lhs]
 	
-	def AsTerminal(self, symbol: N | T) -> T | None:
+	def CheckSymbolType(self, symbol: N | T) -> tuple[N, None] | tuple[None, T]:
 		if self._is_terminal(symbol):
-			# If T can be str, we need a way to distinguish between terminals and non-terminals.
-			# We rely on is_terminal to do this, regardless of type.
-			return symbol  # type: ignore
+			return None, symbol  # type: ignore
 		else:
-			return None
-	
-	def AsNonTerminal(self, symbol: N | T) -> N | None:
-		if self._is_terminal(symbol):
-			return None
-		else:
-			return symbol  # type: ignore
+			return symbol, None  # type: ignore
 	
 	def GetFirstSet(self, symbol: N):
 		return self._first_sets[symbol]
@@ -80,21 +72,19 @@ class Syntax[N, T, R]:
 			if dot_pos == len(production.rhs):
 				return
 			
-			next_symbol = self.AsNonTerminal(production.rhs[dot_pos])
+			next_symbol, _ = self.CheckSymbolType(production.rhs[dot_pos])
 			if next_symbol is None:
 				return
 			
 			new_lookahead: set[T | None] = set()
 			for i in range(dot_pos + 1, len(production.rhs)):
-				symbol = production.rhs[i]
-				if following := self.AsTerminal(symbol):
-					new_lookahead.add(following)
+				following = self.CheckSymbolType(production.rhs[i])
+				if following[0] is None:
+					new_lookahead.add(following[1])
 					break
 				
-				following = self.AsNonTerminal(symbol)
-				assert following is not None
-				new_lookahead |= self.GetFirstSet(following)
-				if not self.CanProduceEpsilon(following):
+				new_lookahead |= self.GetFirstSet(following[0])
+				if not self.CanProduceEpsilon(following[0]):
 					break
 			else:
 				new_lookahead |= lookahead
@@ -114,7 +104,7 @@ class Syntax[N, T, R]:
 	
 	def BuildLR1Parser(self):
 		state_table: dict[frozenset[Item[N, T, R]], int] = {}
-		shift_table: dict[tuple[int, T | None], int] = {}
+		shift_table: dict[tuple[int, T | None], int] = {}  # Can be typed as dist[tuple[int, T], int]
 		reduce_table: dict[tuple[int, T | None], Production[N, T, R]] = {}
 		goto_table: dict[tuple[int, N], int] = {}
 		def explore(state: frozenset[Item[N, T, R]]) -> int:
@@ -124,28 +114,27 @@ class Syntax[N, T, R]:
 			sid = len(state_table)
 			state_table[state] = sid
 			
-			working_set = set(it for it in state if it.dot_pos < len(it.production.rhs))
+			working_set = set(item for item in state if item.dot_pos < len(item.production.rhs))
 			while working_set:
 				item = working_set.pop()
 				next_symbol = item.production.rhs[item.dot_pos]
 				items = [
-					it for it in working_set
-					if it.production.rhs[it.dot_pos] == next_symbol
+					item for item in working_set
+					if item.production.rhs[item.dot_pos] == next_symbol
 				]
 				working_set.difference_update(items)
 				items.append(item)
 				
-				new_items = [(it.production, it.dot_pos + 1, it.lookahead) for it in items]
+				new_items = [(item.production, item.dot_pos + 1, item.lookahead) for item in items]
 				next_state = self.ExpandState(new_items)
 				next_sid = explore(next_state)
-				if following := self.AsTerminal(next_symbol):
-					shift_table[sid, following] = next_sid
+				following = self.CheckSymbolType(next_symbol)
+				if following[0] is None:
+					shift_table[sid, following[1]] = next_sid
 				else:
-					following = self.AsNonTerminal(next_symbol)
-					assert following is not None
-					goto_table[sid, following] = next_sid
+					goto_table[sid, following[0]] = next_sid
 			
-			working_set = set(it for it in state if it.dot_pos == len(it.production.rhs))
+			working_set = set(item for item in state if item.dot_pos == len(item.production.rhs))
 			while working_set:
 				item = working_set.pop()
 				for terminal in item.lookahead:
@@ -198,10 +187,18 @@ class Syntax[N, T, R]:
 					if dot_pos == len(production.rhs) and token.GetType() in lookahead
 				)
 				if len(productions) == 0:
-					raise Exception("No solution")
+					terminals = set()
+					for production, dot_pos, lookahead in state:
+						if dot_pos == len(production.rhs):
+							terminals |= lookahead
+						else:
+							following = production.rhs[dot_pos]
+							if self._is_terminal(following):
+								terminals.add(following)
+					raise Exception(f"Syntax error at line {token.GetLineNum()} column {token.GetColumnNum()}: Expect {terminals}.")
 				
 				if len(productions) > 1:
-					raise Exception("Ambiguous")
+					raise Exception("Detect reduce-reduce conflict! Your grammar is ambiguous.")
 				
 				reduce_rule = productions[0]
 				split_idx = len(action_stack) - len(reduce_rule.rhs)
@@ -270,13 +267,13 @@ class Syntax[N, T, R]:
 		)
 
 
-class Parser[N, T, U]:
+class Parser[N, T, R]:
 	def __init__(
 		self,
 		syntax: Syntax,
-		state_table: Sequence[frozenset[Item[N, T, U]]],
+		state_table: Sequence[frozenset[Item[N, T, R]]],
 		shift_table: dict[tuple[int, T | None], int],
-		reduce_table: dict[tuple[int, T | None], Production[N, T, U]],
+		reduce_table: dict[tuple[int, T | None], Production[N, T, R]],
 		goto_table: dict[tuple[int, N], int]
 	):
 		self._syntax = syntax
@@ -288,9 +285,9 @@ class Parser[N, T, U]:
 	def __str__(self):
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
-	def Parse(self, token_stream: Iterator[Token[T]]) -> U:
+	def Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [0]
-		action_stack: list[U | Token] = []
+		action_stack: list[R | Token] = []
 		accept = False
 		for token in token_stream:
 			if accept:
