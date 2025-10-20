@@ -2,6 +2,13 @@ import lang_ast
 
 
 class ToOLangCode(lang_ast.Visitor[list[str]]):
+	"""
+	Convert given AST back to corresponding OLang code.
+	"""
+	
+	def __init__(self, indent="\t"):
+		self._indent = indent
+	
 	def VisitInt(self, node):
 		lines = [node.token.GetText()]
 		return self._AppendAttrText(node, lines)
@@ -37,7 +44,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	def VisitFunc(self, node):
 		param = node.param.Accept(self)
 		body = node.body.Accept(self)
-		lines = self._JoinText(" -> ", param, body)
+		lines = self._JoinText(" ", param, body)
 		lines[0] = f"fn {lines[0]}"
 		return self._AppendAttrText(node, lines)
 	
@@ -61,7 +68,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 			if len(elements) == 1:
 				lines[0] += "|"
 		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText("|", lines)]
+			lines = [f"{self._indent}{line}" for lines in elements for line in self._SuffixText("|", lines)]
 		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(node, lines)
 	
@@ -72,7 +79,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 			if len(elements) == 1:
 				lines[0] += ","
 		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(",", lines)]
+			lines = [f"{self._indent}{line}" for lines in elements for line in self._SuffixText(",", lines)]
 		lines = self._EncloseText("(", ")", lines)
 		return self._AppendAttrText(node, lines)
 	
@@ -81,7 +88,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		if all(len(lines) == 1 for lines in elements):
 			lines = ["; ".join(lines[0] for lines in elements)]
 		else:
-			lines = [f"\t{line}" for lines in elements for line in self._SuffixText(";", lines)]
+			lines = [f"{self._indent}{line}" for lines in elements for line in self._SuffixText(";", lines)]
 		lines = self._EncloseText(".{", "}", lines)
 		return self._AppendAttrText(node, lines)
 	
@@ -200,10 +207,9 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		else:
 			return [*text[:-1], f"{text[-1]}{suf}"]
 	
-	@staticmethod
-	def _EncloseText(left: str, right: str, text: list[str], force_new_line=False) -> list[str]:
+	def _EncloseText(self, left: str, right: str, text: list[str], force_new_line=False) -> list[str]:
 		def Block():
-			return [left, *(f"\t{line}" for line in text), right]
+			return [left, *(f"{self._indent}{line}" for line in text), right]
 		
 		if force_new_line:
 			return Block()

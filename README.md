@@ -4,7 +4,7 @@ OLang 是我正在开发的一款通用编程语言，主要用来实验我对�
 
 ### 语法介绍
 
-OLang 的语法设计主要借鉴了 [Zig](https://ziglang.org/)，[Rust](https://www.rust-lang.org/)，[Haskell](https://www.haskell.org/) 这几门语言，其目标是在维持语法一致性和简洁性的同时尽可能地提高语言的表达能力与可扩展性。
+OLang 的语法设计主要借鉴了 [Zig](https://ziglang.org/)，[Rust](https://www.rust-lang.org/)，[Haskell](https://www.haskell.org/) 这几门语言，其目标是在维持简洁性和一致性的同时尽可能地贴合现代程序员的编程直觉，增强语言的表达能力和可扩展性。
 
 #### 变量
 
@@ -336,12 +336,13 @@ else if (y == 5) {
 
 ### 参考资料
 
-- 刘未鹏的 [rev#1](https://blog.csdn.net/pongba/article/details/1732055)（[转载](https://jackxiang.com/post/2068/)）和 [rev#2](https://blog.csdn.net/pongba/article/details/1815742)（[转载](https://www.cnblogs.com/taoxu0903/archive/2008/04/04/1137864.html)）博客
-- 刘未鹏的[《C++0x漫谈》](https://blog.csdn.net/pongba/category_158724.html)系列博客
-- vczh 的[《如何设计一门语言》](http://www.cppblog.com/vczh/archive/2013/04/27/199765.html)系列博客
-- 斯坦福大学 [CS143 编译原理](https://www.bilibili.com/video/BV1Mb42177J7)课程
-- 加利福尼亚州立大学 [CSC 151 编译器构造](https://www.youtube.com/playlist?list=PL6KMWPQP_DM97Hh0PYNgJord-sANFTI3i)课程
-- [Simple but Powerful Pratt Parsing](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html) 短文
+- 刘未鹏的 [rev#1](https://blog.csdn.net/pongba/article/details/1732055)（[转载](https://jackxiang.com/post/2068/)）和 [rev#2](https://blog.csdn.net/pongba/article/details/1815742)（[转载](https://www.cnblogs.com/taoxu0903/archive/2008/04/04/1137864.html)）博客；
+- 刘未鹏的[《C++0x漫谈》](https://blog.csdn.net/pongba/category_158724.html)系列博客；
+- vczh 的[《如何设计一门语言》](http://www.cppblog.com/vczh/archive/2013/04/27/199765.html)系列博客；
+- 斯坦福大学 [CS143 编译原理](https://www.bilibili.com/video/BV1Mb42177J7)课程；
+- 加利福尼亚州立大学 [CSC 151 编译器构造](https://www.youtube.com/playlist?list=PL6KMWPQP_DM97Hh0PYNgJord-sANFTI3i)课程；
+- matklad 的 [《Simple but Powerful Pratt Parsing》](https://matklad.github.io/2020/04/13/simple-but-powerful-pratt-parsing.html) 短文；
+- Robert Nystrom 的[《Craft Interpreters》](https://craftinginterpreters.com/)书籍。
 
 ### 未来的规划（大饼）
 

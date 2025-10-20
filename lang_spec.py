@@ -225,17 +225,17 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(*|/|%)", ("%",), lambda MOD: MOD),
 	
 	# unary: (+|-|!|&) unary
-	#      | app
+	#      | call
 	("unary", ("(+|-|!|&)", "unary"), lambda OP, val: OP(val)),
-	("unary", ("app",), lambda x: x),
+	("unary", ("call",), lambda x: x),
 	("(+|-|!|&)", ("+",), lambda PLUS: lambda node: NodeUnaryOp(PLUS, node)),
 	("(+|-|!|&)", ("-",), lambda MINUS: lambda node: NodeUnaryOp(MINUS, node)),
 	("(+|-|!|&)", ("!",), lambda NOT: lambda node: NodeUnaryOp(NOT, node)),
 	("(+|-|!|&)", ("&",), lambda AMPERSAND: lambda node: NodeUnaryOp(AMPERSAND, node)),
 	
-	# app: post* (bound|prefixed)
-	("app", ("post+", "(bound|prefixed)"), lambda func, arg: NodeApply(make_applied(*func), arg)),
-	("app", ("(bound|prefixed)",), lambda x: x),
+	# call: post* (bound|prefixed)
+	("call", ("post+", "(bound|prefixed)"), lambda func, arg: NodeApply(make_applied(*func), arg)),
+	("call", ("(bound|prefixed)",), lambda x: x),
 	("(bound|prefixed)", ("bound",), lambda x: x),
 	("(bound|prefixed)", ("prefixed",), lambda x: x),
 	
