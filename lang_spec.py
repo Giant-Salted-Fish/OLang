@@ -161,16 +161,15 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("tuple..", ("suffixed",), lambda x: (x,)),
 	("tuple..", (), lambda: ()),
 	
-	# suffixed: (lmbd|ctrl_else|or) suffix*
-	("suffixed", ("(lmbd|ctrl_else|or)", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
-	("suffix*", ("suffix*", ":", "(lmbd|ctrl_else|or)"), lambda lst, COLON, attr: (*lst, attr)),
+	# suffixed: lmbd suffix*
+	("suffixed", ("lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
+	("suffix*", ("suffix*", ":", "lmbd"), lambda lst, COLON, attr: (*lst, attr)),
 	("suffix*", (), lambda: ()),
-	("(lmbd|ctrl_else|or)", ("lmbd",), lambda x: x),
-	("(lmbd|ctrl_else|or)", ("ctrl_else",), lambda x: x),
-	("(lmbd|ctrl_else|or)", ("or",), lambda x: x),
 	
-	# lmbd: (ctrl_else|or) -> (lmbd|ctrl_else|or)
-	("lmbd", ("(ctrl_else|or)", "->", "(lmbd|ctrl_else|or)"), lambda param, ARROW, body: NodeFunc(param, check_compound(body))),
+	# lmbd: (ctrl_else|or) -> lmbd
+	#     | (ctrl_else|or)
+	("lmbd", ("(ctrl_else|or)", "->", "lmbd"), lambda param, ARROW, body: NodeFunc(param, check_compound(body))),
+	("lmbd", ("(ctrl_else|or)",), lambda x: x),
 	("(ctrl_else|or)", ("ctrl_else",), lambda x: x),
 	("(ctrl_else|or)", ("or",), lambda x: x),
 	
