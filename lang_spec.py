@@ -101,29 +101,29 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	
 	# decl: prefix* (TMPLT|FN) bound bound bound
 	#     | prefix* (STRUCT|TUPLE) bound bound
-	("decl", ("prefix*", "TMPLT", "bound", "bound", "bound"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTemplate(param, check_compound(body)).AppendPrefix(*attr))),
-	("decl", ("prefix*", "FN", "bound", "bound", "bound"), lambda attr, FN, label, param, body: NodeAssign(NodeDecl(label), NodeFunc(param, check_compound(body)).AppendPrefix(*attr))),
+	("decl", ("prefix*", "TMPLT", "bound", "bound", "bound"), lambda attr, TMPLT, label, param, body: NodeAssign(NodeDecl(label), NodeTemplate(param, ensure_compound(body)).AppendPrefix(*attr))),
+	("decl", ("prefix*", "FN", "bound", "bound", "bound"), lambda attr, FN, label, param, body: NodeAssign(NodeDecl(label), NodeFunc(param, ensure_compound(body)).AppendPrefix(*attr))),
 	("decl", ("prefix*", "STRUCT", "bound", "bound"), lambda attr, STRUCT, label, body: NodeAssign(NodeDecl(label), NodeNamedStruct(body).AppendPrefix(*attr))),
 	("decl", ("prefix*", "TUPLE", "bound", "bound"), lambda attr, TUPLE, label, body: NodeAssign(NodeDecl(label), NodeNamedTuple(body).AppendPrefix(*attr))),
 	
 	# norm_ctrl: prefix* (IF|WHILE) bound bound norm_else
 	#          | prefix* FOR bound bound bound norm_else
-	("norm_ctrl", ("prefix*", "IF", "bound", "bound", "norm_else"), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, check_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
-	("norm_ctrl", ("prefix*", "WHILE", "bound", "bound", "norm_else"), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
-	("norm_ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "norm_else"), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
+	("norm_ctrl", ("prefix*", "IF", "bound", "bound", "norm_else"), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, ensure_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
+	("norm_ctrl", ("prefix*", "WHILE", "bound", "bound", "norm_else"), lambda attr, FOR, cond, loop, x: (NodeWhileElse(cond, ensure_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
+	("norm_ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "norm_else"), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, ensure_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
 	# norm_else: prefix* ELSE norm_ctrl
 	#          | prefix* ELSE bound norm_stmt
 	#          | norm_stmt
 	("norm_else", ("prefix*", "ELSE", "norm_ctrl"), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
-	("norm_else", ("prefix*", "ELSE", "bound", "norm_stmt"), lambda attr, ELSE, x, follow: (check_compound(x).AppendPrefix(*attr), *follow)),
+	("norm_else", ("prefix*", "ELSE", "bound", "norm_stmt"), lambda attr, ELSE, x, follow: (ensure_compound(x).AppendPrefix(*attr), *follow)),
 	("norm_else", ("norm_stmt",), lambda x: (NodeCompound(), *x)),
 	
 	# last_ctrl: prefix* (IF|WHILE) bound bound last_else
 	#          | prefix* FOR bound bound bound last_else
-	("last_ctrl", ("prefix*", "IF", "bound", "bound", "last_else"), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, check_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
-	("last_ctrl", ("prefix*", "WHILE", "bound", "bound", "last_else"), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
-	("last_ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "last_else"), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, check_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
+	("last_ctrl", ("prefix*", "IF", "bound", "bound", "last_else"), lambda attr, IF, cond, expr, x: (NodeIfElse(cond, ensure_compound(expr), x[0]).AppendPrefix(*attr), *x[1:])),
+	("last_ctrl", ("prefix*", "WHILE", "bound", "bound", "last_else"), lambda attr, WHILE, cond, loop, x: (NodeWhileElse(cond, ensure_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
+	("last_ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "last_else"), lambda attr, FOR, itr, var, loop, x: (NodeForElse(itr, var, ensure_compound(loop), x[0]).AppendPrefix(*attr), *x[1:])),
 	
 	# last_else: prefix* ELSE last_ctrl
 	#          | prefix* ELSE bound last_stmt
@@ -185,14 +185,14 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("ctrl_suffixed", ("ctrl_lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
 	
 	# lmbd: or (-> (or|ctrl_or))*
-	("lmbd", ("or", "lmbd.."), lambda param, body: NodeFunc(param, check_compound(body)) if body else param),
-	("lmbd..", ("->", "(or|ctrl_or)", "lmbd.."), lambda ARROW, param, body: NodeFunc(param, check_compound(body)) if body else param),
+	("lmbd", ("or", "lmbd.."), lambda param, body: NodeFunc(param, ensure_compound(body)) if body else param),
+	("lmbd..", ("->", "(or|ctrl_or)", "lmbd.."), lambda ARROW, param, body: NodeFunc(param, ensure_compound(body)) if body else param),
 	("lmbd..", (), lambda: None),
 	("(or|ctrl_or)", ("or",), lambda x: x),
 	("(or|ctrl_or)", ("ctrl_or",), lambda x: x),
 	
 	# ctrl_lmbd: ctrl_or (-> (or|ctrl_or))*
-	("ctrl_lmbd", ("ctrl_or", "lmbd.."), lambda param, body: NodeFunc(param, check_compound(body)) if body else param),
+	("ctrl_lmbd", ("ctrl_or", "lmbd.."), lambda param, body: NodeFunc(param, ensure_compound(body)) if body else param),
 	
 	# or: and (|| (and|ctrl_and))*
 	("or", ("or", "||", "(and|ctrl_and)"), lambda left, OR, right: NodeLogicalOp(OR, left, right)),
@@ -278,18 +278,18 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(+|-|!|&)", ("&",), lambda AMPERSAND: AMPERSAND),
 	
 	# call: post+ (ctrl|bound|prefixed)
-	("call", ("post+", "(ctrl|bound|prefixed)"), lambda func, arg: NodeApply(make_applied(*func), arg)),
+	("call", ("post+", "(ctrl|bound|prefixed)"), lambda func, arg: NodeApply(func, arg)),
 	("(ctrl|bound|prefixed)", ("ctrl",), lambda x: x),
 	("(ctrl|bound|prefixed)", ("bound",), lambda x: x),
 	("(ctrl|bound|prefixed)", ("prefixed",), lambda x: x),
 	
 	# ctrl: prefix* (IF|WHILE) bound bound else?
 	#     | prefix* FOR bound bound bound else?
-	("ctrl", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, check_compound(expr), otherwise).AppendPrefix(*attr)),
-	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, check_compound(loop), otherwise).AppendPrefix(*attr)),
-	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, check_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
 	("else?", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: check_compound(x).AppendPrefix(*attr)),
+	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: ensure_compound(x).AppendPrefix(*attr)),
 	("else?", (), lambda: NodeCompound()),
 	
 	# It is named "bound" even if its length can go infinite, as it has a clear terminator that indicates the end of this element.
@@ -298,20 +298,20 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	#      | prefix* { stmt_lst }
 	#      | prefix* .{ stmt_lst }
 	#      | post
-	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, check_compound(body)).AppendPrefix(*attr)),
-	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, check_compound(body)).AppendPrefix(*attr)),
+	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, ensure_compound(body)).AppendPrefix(*attr)),
+	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, ensure_compound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "bound"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
 	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, lst, RPR: NodeStruct(*lst).AppendPrefix(*attr)),
-	("bound", ("post",), lambda x: make_applied(x)),
+	("bound", ("post",), lambda x: x[1](x[0])),
 	
 	# prefixed: prefix* @ post+ post
-	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: make_applied(x).AppendPrefix(*attr_lst, make_applied(*attr))),
-	("prefix*", ("prefix*", "@", "post+"), lambda lst, AT, attr: (*lst, make_applied(*attr))),
+	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: x[1](x[0]).AppendPrefix(*attr_lst, attr)),
+	("prefix*", ("prefix*", "@", "post+"), lambda lst, AT, attr: (*lst, attr)),
 	("prefix*", (), lambda: ()),
-	("post+", ("post+", "post"), lambda lst, x: (*lst, x)),
-	("post+", ("post",), lambda x: (x,)),
+	("post+", ("post+", "post"), lambda head, x: x[1](NodeApply(head, x[0]))),
+	("post+", ("post",), lambda x: x[1](x[0])),
 	
 	# post: prim postfix*
 	("post", ("prim", "postfix*"), lambda x, post: (x, post)),
@@ -354,16 +354,5 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 PRODUCTIONS: list[Production[str, str, Node]] = [Production(*p) for p in SYNTAX_RULES]
 
 
-def make_applied(
-	head: tuple[Node, Callable[[Node], Node]],
-	*items: tuple[Node, Callable[[Node], Node]]
-):
-	func = head[1](head[0])
-	for node, postfix in items:
-		node = NodeApply(func, node)
-		func = postfix(node)
-	return func
-
-
-def check_compound(node: Node):
+def ensure_compound(node: Node):
 	return node if isinstance(node, NodeCompound) else NodeCompound(node)
