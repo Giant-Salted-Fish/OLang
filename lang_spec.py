@@ -130,7 +130,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	#          | prefix* ELSE bound last_stmt
 	#          | last_stmt
 	("last_else", ("prefix*", "ELSE", "last_ctrl"), lambda attr, ELSE, x: (x[0].AppendPrefix(*attr), *x[1:])),
-	("last_else", ("prefix*", "ELSE", "bound", "last_stmt"), lambda attr, ELSE, x, follow: (x.AppendPrefix(*attr), *follow)),
+	("last_else", ("prefix*", "ELSE", "bound", "last_stmt"), lambda attr, ELSE, x, follow: (ensure_compound(x).AppendPrefix(*attr), *follow)),
 	("last_else", ("last_stmt",), lambda x: (NodeCompound(), *x)),
 	
 	# expr: assign
