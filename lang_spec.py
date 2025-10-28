@@ -164,7 +164,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(tuple|ctrl_tuple)", ("ctrl_tuple",), lambda x: x),
 	
 	# ctrl_union: ctrl_tuple (| (tuple|ctrl_tuple))* |?
-	("ctrl_union", ("ctrl_tuple", "union.."), lambda x, PIPE, lst: NodeUnion(x, *lst)),
+	("ctrl_union", ("ctrl_tuple", "union.."), lambda x, lst: x if lst is None else NodeUnion(x, *lst)),
 	
 	# tuple: suffixed (, (suffixed|ctrl_suffixed))* ,?
 	("tuple", ("suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
@@ -175,7 +175,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(suffixed|ctrl_suffixed)", ("ctrl_suffixed",), lambda x: x),
 	
 	# ctrl_tuple: ctrl_suffixed (, (suffixed|ctrl_suffixed))* ,?
-	("ctrl_tuple", ("ctrl_suffixed", "tuple.."), lambda x, lst: NodeTuple(x, *lst)),
+	("ctrl_tuple", ("ctrl_suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
 	
 	# suffixed: lmbd suffix*
 	("suffixed", ("lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),

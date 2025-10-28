@@ -288,8 +288,8 @@ let result = (
 对于没有 `else` 分支的 `if`/`while`/`for` 语句，OLang 会为它们隐式地补上一个返回空元组的 `else` 分支，因此下面这两种写法是等价的：
 
 ```
-let result = (if cond { "Hello" });  // 省略末尾的 else 分支
-let result = (if cond { "Hello" } else {});  // 注意空代码块会返回空元组
+let result = if cond { "Hello" };  // 省略末尾的 else 分支
+let result = if cond { "Hello" } else {};  // 注意空代码块会返回空元组
 ```
 
 #### 类型注解
