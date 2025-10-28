@@ -13,6 +13,7 @@ TOKEN_TYPES = [
 	("CONTINUE", r"continue"),
 	("STRUCT", r"struct"),
 	("RETURN", r"return"),
+	("INLINE", r"inline"),  # Comment out this to disable inline keyword.
 	("BREAK", r"break"),
 	("TUPLE", r"tuple"),
 	("WHILE", r"while"),
@@ -270,7 +271,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("unary", ("(+|-|!|&)", "unary"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("(+|-|!|&)", "ctrl"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("call",), lambda x: x),
-	("unary", ("bound",), lambda x: x),
+	("unary", ("inline_ctrl",), lambda x: x),
 	("unary", ("prefixed",), lambda x: x),
 	("(+|-|!|&)", ("+",), lambda PLUS: PLUS),
 	("(+|-|!|&)", ("-",), lambda MINUS: MINUS),
@@ -278,19 +279,28 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(+|-|!|&)", ("&",), lambda AMPERSAND: AMPERSAND),
 	
 	# call: post+ (ctrl|bound|prefixed)
-	("call", ("post+", "(ctrl|bound|prefixed)"), lambda func, arg: NodeApply(func, arg)),
-	("(ctrl|bound|prefixed)", ("ctrl",), lambda x: x),
-	("(ctrl|bound|prefixed)", ("bound",), lambda x: x),
-	("(ctrl|bound|prefixed)", ("prefixed",), lambda x: x),
+	("call", ("post+", "ctrl"), lambda func, arg: NodeApply(func, arg)),
+	("call", ("post+", "inline_ctrl"), lambda func, arg: NodeApply(func, arg)),
+	("call", ("post+", "prefixed"), lambda func, arg: NodeApply(func, arg)),
 	
 	# ctrl: prefix* (IF|WHILE) bound bound else?
 	#     | prefix* FOR bound bound bound else?
-	("ctrl", ("prefix*", "IF", "bound", "bound", "else?"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
-	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else?"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
-	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else?"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
-	("else?", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: ensure_compound(x).AppendPrefix(*attr)),
-	("else?", (), lambda: NodeCompound()),
+	("ctrl", ("prefix*", "IF", "bound", "bound", "else"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	
+	# else: prefix* ELSE (ctrl|bound)
+	("else", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
+	("else", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: ensure_compound(x).AppendPrefix(*attr)),
+	("else", (), lambda: NodeCompound()),
+	
+	# inline_ctrl: prefix* INLINE (IF|WHILE) bound bound else?
+	#            | prefix* INLINE FOR bound bound bound else?
+	#            | bound
+	("inline_ctrl", ("prefix*", "INLINE", "IF", "bound", "bound", "else"), lambda attr, INLINE, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
+	("inline_ctrl", ("prefix*", "INLINE", "WHILE", "bound", "bound", "else"), lambda attr, INLINE, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	("inline_ctrl", ("prefix*", "INLINE", "FOR", "bound", "bound", "bound", "else"), lambda attr, INLINE, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	("inline_ctrl", ("bound",), lambda x: x),
 	
 	# It is named "bound" even if its length can go infinite, as it has a clear terminator that indicates the end of this element.
 	# bound: prefix* (TMPLT|FN) bound bound
