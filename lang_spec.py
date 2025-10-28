@@ -154,35 +154,27 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	# ctrl_assign: ctrl_union (= (union|ctrl_union))*
 	("ctrl_assign", ("ctrl_union", "assign.."), lambda var, EQ, expr: NodeAssign(var, expr) if expr else var),
 	
-	# union: tuple | union..
-	#      | tuple
-	("union", ("tuple", "|", "union.."), lambda x, PIPE, lst: NodeUnion(x, *lst)),
-	("union", ("tuple",), lambda x: x),
-	("union..", ("(tuple|ctrl_tuple)", "|", "union.."), lambda x, PIPE, lst: (x, *lst)),
-	("union..", ("(tuple|ctrl_tuple)",), lambda x: (x,)),
-	("union..", (), lambda: ()),
+	# union: tuple (| (tuple|ctrl_tuple))* |?
+	("union", ("tuple", "union.."), lambda x, lst: x if lst is None else NodeUnion(x, *lst)),
+	("union..", ("|", "(tuple|ctrl_tuple)", "union.."), lambda PIPE, x, lst: (x, *(lst or ()))),
+	("union..", ("|",), lambda PIPE: ()),
+	("union..", (), lambda: None),
 	("(tuple|ctrl_tuple)", ("tuple",), lambda x: x),
 	("(tuple|ctrl_tuple)", ("ctrl_tuple",), lambda x: x),
 	
-	# ctrl_union: ctrl_tuple | union..
-	#           | ctrl_tuple
-	("ctrl_union", ("ctrl_tuple", "|", "union.."), lambda x, PIPE, lst: NodeUnion(x, *lst)),
-	("ctrl_union", ("ctrl_tuple",), lambda x: x),
+	# ctrl_union: ctrl_tuple (| (tuple|ctrl_tuple))* |?
+	("ctrl_union", ("ctrl_tuple", "union.."), lambda x, PIPE, lst: NodeUnion(x, *lst)),
 	
-	# tuple: suffixed , tuple..
-	#      | suffixed
-	("tuple", ("suffixed", ",", "tuple.."), lambda x, COMMA, lst: NodeTuple(x, *lst)),
-	("tuple", ("suffixed",), lambda x: x),
-	("tuple..", ("(suffixed|ctrl_suffixed)", ",", "tuple.."), lambda x, COMMA, lst: (x, *lst)),
-	("tuple..", ("(suffixed|ctrl_suffixed)",), lambda x: (x,)),
-	("tuple..", (), lambda: ()),
+	# tuple: suffixed (, (suffixed|ctrl_suffixed))* ,?
+	("tuple", ("suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
+	("tuple..", (",", "(suffixed|ctrl_suffixed)", "tuple.."), lambda COMMA, x, lst: (x, *(lst or ()))),
+	("tuple..", (",",), lambda COMMA: ()),
+	("tuple..", (), lambda: None),
 	("(suffixed|ctrl_suffixed)", ("suffixed",), lambda x: x),
 	("(suffixed|ctrl_suffixed)", ("ctrl_suffixed",), lambda x: x),
 	
-	# ctrl_tuple: ctrl_suffixed , tuple..
-	#           | ctrl_suffixed
-	("ctrl_tuple", ("ctrl_suffixed", ",", "tuple.."), lambda x, COMMA, lst: NodeTuple(x, *lst)),
-	("ctrl_tuple", ("ctrl_suffixed",), lambda x: x),
+	# ctrl_tuple: ctrl_suffixed (, (suffixed|ctrl_suffixed))* ,?
+	("ctrl_tuple", ("ctrl_suffixed", "tuple.."), lambda x, lst: NodeTuple(x, *lst)),
 	
 	# suffixed: lmbd suffix*
 	("suffixed", ("lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
