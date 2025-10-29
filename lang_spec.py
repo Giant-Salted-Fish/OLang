@@ -71,7 +71,7 @@ TOKEN_TYPES = [
 TERMINALS = set(t for t, _ in TOKEN_TYPES)
 
 SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
-	("S", ("stmt_lst",), lambda lst: NodeCompound(*lst)),
+	("S", ("stmt_lst",), lambda lst: NodeStruct(*lst)),
 	
 	# stmt_lst: norm_stmt* last_stmt
 	("stmt_lst", ("norm_stmt", "stmt_lst"), lambda x, lst: (*x, *lst)),
@@ -314,8 +314,8 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, ensure_compound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "bound"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
-	("bound", ("prefix*", "{", "stmt_lst", "}"), lambda attr, LCB, lst, RCB: NodeCompound(*lst).AppendPrefix(*attr)),
-	("bound", ("prefix*", ".{", "stmt_lst", "}"), lambda attr, LPR, lst, RPR: NodeStruct(*lst).AppendPrefix(*attr)),
+	("bound", ("prefix*", "{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, post: post(NodeCompound(*lst)).AppendPrefix(*attr)),
+	("bound", ("prefix*", ".{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, post: post(NodeStruct(*lst)).AppendPrefix(*attr)),
 	("bound", ("post",), lambda x: x[1](x[0])),
 	
 	# prefixed: prefix* @ post+ post
