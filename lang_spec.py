@@ -28,8 +28,9 @@ TOKEN_TYPES = [
 	("ID", r"[a-zA-Z_\$][a-zA-Z0-9_\$]*"),
 	("STR", r"\"(?:[^\"\\]|\\[tnr])*\""),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
 	
-	(".(", r"\.\("),
 	(".{", r"\.\{"),
+	(".[", r"\.\["),
+	(".(", r"\.\("),
 	("{", r"\{"),
 	("}", r"\}"),
 	("[", r"\["),
@@ -266,17 +267,18 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("ctrl_mul", ("ctrl_mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("ctrl_mul", ("ctrl",), lambda x: x),
 	
-	# unary: (+|-|!|&)* (call|bound|prefix)
-	#      | (+|-|!|&)+ ctrl
-	("unary", ("(+|-|!|&)", "unary"), lambda op, val: NodeUnaryOp(op, val)),
-	("unary", ("(+|-|!|&)", "ctrl"), lambda op, val: NodeUnaryOp(op, val)),
+	# unary: (+|-|!|&|*)* (call|bound|prefix)
+	#      | (+|-|!|&|*)+ ctrl
+	("unary", ("(+|-|!|&|*)", "unary"), lambda op, val: NodeUnaryOp(op, val)),
+	("unary", ("(+|-|!|&|*)", "ctrl"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("call",), lambda x: x),
 	("unary", ("inline_ctrl",), lambda x: x),
 	("unary", ("prefixed",), lambda x: x),
-	("(+|-|!|&)", ("+",), lambda PLUS: PLUS),
-	("(+|-|!|&)", ("-",), lambda MINUS: MINUS),
-	("(+|-|!|&)", ("!",), lambda NOT: NOT),
-	("(+|-|!|&)", ("&",), lambda AMPERSAND: AMPERSAND),
+	("(+|-|!|&|*)", ("+",), lambda PLUS: PLUS),
+	("(+|-|!|&|*)", ("-",), lambda MINUS: MINUS),
+	("(+|-|!|&|*)", ("!",), lambda NOT: NOT),
+	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
+	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
 	# call: post+ (ctrl|bound|prefixed)
 	("call", ("post+", "ctrl"), lambda func, arg: NodeApply(func, arg)),
@@ -338,7 +340,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	#     | ( expr )
 	#     | ( decl )
 	#     | .( field_lst )
-	#     | .{ stmt_lst }
+	#     | .[ element_lst ]
 	("prim", ("INT",), NodeInt),
 	("prim", ("ID",), NodeLabel),
 	("prim", ("STR",), NodeStr),
@@ -348,6 +350,13 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
 	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
 	("prim", (".(", "field_lst", ")"), lambda LPR, x, RPR: NodeStruct(*x)),
+	("prim", (".[", "element_lst", "]"), lambda LPR, x, RPR: NodeTuple(*x)),
+	
+	# element_lst: element , element_lst
+	#            | element?
+	("element_lst", ("(suffixed|ctrl_suffixed)", ",", "element_lst"), lambda e, COMMA, lst: (e, *lst)),
+	("element_lst", ("(suffixed|ctrl_suffixed)",), lambda e: (e,)),
+	("element_lst", (), lambda: ()),
 	
 	# field_lst: field_set (;|,) field_lst
 	#          | field_set?
