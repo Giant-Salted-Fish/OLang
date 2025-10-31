@@ -185,11 +185,6 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	
 	def _GenAttrText(self, prefix: str, attrs: tuple[lang_ast.Node, ...]):
 		allAttrLines = [node.Accept(self) for node in attrs]
-		if len(allAttrLines) == 1:
-			lines = allAttrLines[0]
-			if len(lines) == 1:
-				return lines
-		
 		assert all(len(lines) > 0 for lines in allAttrLines)
 		return [line for lines in allAttrLines for line in self._PrefixText(prefix, lines)]
 	
