@@ -293,10 +293,12 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	# ctrl: prefix* IF bound (prefix* THEN)? bound else?
 	#     | prefix* WHILE bound bound else?
 	#     | prefix* FOR bound bound bound else?
+	#     | decl
 	("ctrl", ("prefix*", "IF", "bound", "prefix*", "THEN", "bound", "else"), lambda attr, IF, cond, attr2, THEN, expr, otherwise: NodeIfElse(cond, ensure_compound(expr).AppendPrefix(*attr2), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "IF", "bound", "bound", "else"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
+	("ctrl", ("decl",), lambda x: NodeCompound(x)),
 	
 	# else: prefix* ELSE (ctrl|bound)
 	("else", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),

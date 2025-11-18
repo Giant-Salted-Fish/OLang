@@ -88,7 +88,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		if all(len(lines) == 1 for lines in elements):
 			lines = ["; ".join(lines[0] for lines in elements)]
 		else:
-			lines = [f"{self._indent}{line}" for lines in elements for line in self._SuffixText(";", lines)]
+			lines = [line for lines in elements for line in self._SuffixText(";", lines)]
 		lines = self._EncloseText(".{", "}", lines)
 		return self._AppendAttrText(node, lines)
 	
@@ -114,7 +114,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	def VisitAccess(self, node):
 		obj = node.obj.Accept(self)
 		field = node.field.Accept(self)
-		lines = self._JoinText(".", obj, field)
+		lines = self._JoinText(". " if field[0][0] in ('(', '[', '{') else ".", obj, field)
 		return self._AppendAttrText(node, lines)
 	
 	def VisitIndex(self, node):
