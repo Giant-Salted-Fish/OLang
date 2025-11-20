@@ -1,13 +1,15 @@
-from typing import Self
+from typing import Self, override
+from abc import ABC, abstractmethod
 from scanner import Token
 
 
-class Node:
+class Node(ABC):
 	prefix: tuple["Node", ...] = ()
 	suffix: tuple["Node", ...] = ()
 	
+	@abstractmethod
 	def Accept[T](self, visitor: "Visitor[T]") -> T:
-		raise NotImplementedError
+		pass
 	
 	def AppendPrefix(self, *attr: "Node") -> Self:
 		self.prefix = self.prefix + attr
@@ -27,9 +29,11 @@ class NodeInt(Node):
 	def __init__(self, token: Token):
 		self.token = token
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(self.token.GetText())
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitInt(self)
 
@@ -38,9 +42,11 @@ class NodeLabel(Node):
 	def __init__(self, token: Token):
 		self.token = token
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetText()))
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitLabel(self)
 
@@ -49,9 +55,11 @@ class NodeStr(Node):
 	def __init__(self, token: Token):
 		self.token = token
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetText()))
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitStr(self)
 
@@ -60,9 +68,11 @@ class NodeBool(Node):
 	def __init__(self, token: Token):
 		self.token = token
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.token.GetText()))
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitBool(self)
 
@@ -71,9 +81,11 @@ class NodeCompound(Node):
 	def __init__(self, *nodes: Node):
 		self.nodes = nodes
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitCompound(self)
 
@@ -82,9 +94,11 @@ class NodeDecl(Node):
 	def __init__(self, var: Node):
 		self.var = var
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.var}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitDecl(self)
 
@@ -94,9 +108,11 @@ class NodeAssign(Node):
 		self.var = var
 		self.expr = expr
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.var}, {self.expr}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitAssign(self)
 
@@ -106,9 +122,11 @@ class NodeFunc(Node):
 		self.param = param
 		self.body = body
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitFunc(self)
 
@@ -118,9 +136,11 @@ class NodeTemplate(Node):
 		self.param = param
 		self.body = body
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitTemplate(self)
 
@@ -130,9 +150,11 @@ class NodeApply(Node):
 		self.func = func
 		self.arg = arg
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.func}, {self.arg}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitApply(self)
 
@@ -141,9 +163,11 @@ class NodeUnion(Node):
 	def __init__(self, *nodes: Node):
 		self.nodes = nodes
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitUnion(self)
 
@@ -152,9 +176,11 @@ class NodeTuple(Node):
 	def __init__(self, *nodes: Node):
 		self.nodes = nodes
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitTuple(self)
 
@@ -163,9 +189,11 @@ class NodeStruct(Node):
 	def __init__(self, *fields: Node):
 		self.fields = fields
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(repr(self.fields)[1:-2])
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitStruct(self)
 
@@ -176,9 +204,11 @@ class NodeLogicalOp(Node):
 		self.lhs = lhs
 		self.rhs = rhs
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitLogicalOp(self)
 
@@ -189,9 +219,11 @@ class NodeBinaryOp(Node):
 		self.lhs = lhs
 		self.rhs = rhs
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitBinaryOp(self)
 
@@ -201,9 +233,11 @@ class NodeUnaryOp(Node):
 		self.op = op
 		self.node = node
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.op}, {self.node}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitUnaryOp(self)
 
@@ -213,9 +247,11 @@ class NodeAccess(Node):
 		self.obj = obj
 		self.field = field
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.obj}, {self.field}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitAccess(self)
 
@@ -225,9 +261,11 @@ class NodeIndex(Node):
 		self.obj = obj
 		self.index = index
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.obj}, {self.index}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitIndex(self)
 
@@ -236,9 +274,11 @@ class NodeReturn(Node):
 	def __init__(self, expr: Node):
 		self.expr = expr
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.expr}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitReturn(self)
 
@@ -247,17 +287,21 @@ class NodeBreak(Node):
 	def __init__(self, expr: Node):
 		self.expr = expr
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.expr}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitBreak(self)
 
 
 class NodeContinue(Node):
+	@override
 	def __repr__(self):
 		return self._GenStr("")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitContinue(self)
 
@@ -268,9 +312,11 @@ class NodeIfElse(Node):
 		self.true_branch = true_branch
 		self.false_branch = false_branch
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitIfElse(self)
 
@@ -281,9 +327,11 @@ class NodeWhileElse(Node):
 		self.loop_body = loop_body
 		self.else_branch = else_branch
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitWhileElse(self)
 
@@ -295,9 +343,11 @@ class NodeForElse(Node):
 		self.loop_body = loop_body
 		self.else_branch = else_branch
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitForElse(self)
 
@@ -306,9 +356,11 @@ class NodeNamedTuple(Node):
 	def __init__(self, body: Node):
 		self.body = body
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitNamedTuple(self)
 
@@ -317,88 +369,116 @@ class NodeNamedStruct(Node):
 	def __init__(self, body: Node):
 		self.body = body
 	
+	@override
 	def __repr__(self):
 		return self._GenStr(f"{self.body}")
 	
+	@override
 	def Accept(self, visitor):
 		return visitor.VisitNamedStruct(self)
 
 
-class Visitor[T]:
+class Visitor[T](ABC):
+	@abstractmethod
 	def VisitInt(self, node: NodeInt) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitLabel(self, node: NodeLabel) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitStr(self, node: NodeStr) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitBool(self, node: NodeBool) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitCompound(self, node: NodeCompound) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitDecl(self, node: NodeDecl) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitAssign(self, node: NodeAssign) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitFunc(self, node: NodeFunc) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitTemplate(self, node: NodeTemplate) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitApply(self, node: NodeApply) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitUnion(self, node: NodeUnion) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitTuple(self, node: NodeTuple) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitStruct(self, node: NodeStruct) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitLogicalOp(self, node: NodeLogicalOp) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitBinaryOp(self, node: NodeBinaryOp) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitUnaryOp(self, node: NodeUnaryOp) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitAccess(self, node: NodeAccess) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitIndex(self, node: NodeIndex) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitReturn(self, node: NodeReturn) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitBreak(self, node: NodeBreak) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitContinue(self, node: NodeContinue) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitIfElse(self, node: NodeIfElse) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitWhileElse(self, node: NodeWhileElse) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitForElse(self, node: NodeForElse) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitNamedTuple(self, node: NodeNamedTuple) -> T:
-		raise NotImplementedError
+		pass
 	
+	@abstractmethod
 	def VisitNamedStruct(self, node: NodeNamedStruct) -> T:
-		raise NotImplementedError
+		pass

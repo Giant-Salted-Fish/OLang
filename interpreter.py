@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, override
 from enum import Enum, auto, unique
 import scanner
 import lang_ast
@@ -22,7 +22,8 @@ class Environment:
 		if symbol in self._local_table:
 			return self._local_table[symbol]
 		
-		assert self._parent is not None, f"No variable named \"{symbol}\" to lookup"
+		if self._parent is None:
+			raise RuntimeError(f"Cannot resolve variable <{symbol}>")
 		return self._parent.Resolve(symbol)
 	
 	def Push(self, symbol: str, value: Any):
@@ -57,20 +58,25 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	def __init__(self, env: Environment):
 		self.env = env
 	
+	@override
 	def VisitInt(self, node):
 		return int(node.token.GetText()), ControlState.PASS
 	
+	@override
 	def VisitStr(self, node):
 		return node.token.GetText(), ControlState.PASS
 	
+	@override
 	def VisitBool(self, node):
 		return node.token.GetText().lower() == "true", ControlState.PASS
 	
+	@override
 	def VisitLabel(self, node):
 		val = self.env.Resolve(node.token.GetText())
 		assert val is not None
 		return val, ControlState.PASS
 	
+	@override
 	def VisitCompound(self, node):
 		scope = Environment.Nest(self.env)
 		return Evaluate(scope).EvalCompound(node)
@@ -83,10 +89,12 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 				break
 		return val, ctrl
 	
+	@override
 	def VisitDecl(self, node):
 		node.var.Accept(Declare(self.env))
 		return None, ControlState.PASS
 	
+	@override
 	def VisitAssign(self, node):
 		val, ctrl = node.expr.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -95,6 +103,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		node.var.Accept(Unwind(val, self.env))
 		return val, ControlState.PASS
 	
+	@override
 	def VisitFunc(self, node):
 		def func(arg):
 			scope = Environment.Nest(self.env)
@@ -105,6 +114,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			return val, ControlState.PASS
 		return func, ControlState.PASS
 	
+	@override
 	def VisitTemplate(self, node):
 		def tmplt(arg):
 			scope = Environment.Nest(self.env)
@@ -115,6 +125,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			return val, ControlState.PASS
 		return tmplt, ControlState.PASS
 	
+	@override
 	def VisitApply(self, node):
 		func, ctrl = node.func.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -126,6 +137,11 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		
 		return func(arg)
 	
+	@override
+	def VisitUnion(self, node):
+		raise RuntimeError("Cannot evaluate union")
+	
+	@override
 	def VisitTuple(self, node):
 		nodes = []
 		for node in node.nodes:
@@ -136,6 +152,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		
 		return tuple(nodes), ControlState.PASS
 	
+	@override
 	def VisitStruct(self, node):
 		scope = Environment.Nest(self.env)
 		ev = Evaluate(scope)
@@ -145,6 +162,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 				return val, ctrl
 		return scope.GetLocals(), ControlState.PASS
 	
+	@override
 	def VisitLogicalOp(self, node):
 		short_val = node.op.GetType() == "||"
 		val, ctrl = node.lhs.Accept(self)
@@ -157,6 +175,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		
 		return node.rhs.Accept(self)
 	
+	@override
 	def VisitBinaryOp(self, node):
 		x, ctrl = node.lhs.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -196,6 +215,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			case _:
 				raise ValueError(f"Unknown operator: {op}")
 	
+	@override
 	def VisitUnaryOp(self, node):
 		val, ctrl = node.node.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -214,6 +234,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			case _:
 				raise ValueError(f"Unknown operator: {op}")
 	
+	@override
 	def VisitAccess(self, node):
 		obj, ctrl = node.obj.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -222,6 +243,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		assert isinstance(node.field, lang_ast.NodeLabel)
 		return getattr(obj, node.field.token.GetText())
 	
+	@override
 	def VisitIndex(self, node):
 		obj, ctrl = node.obj.Accept(self)
 		if ctrl is not ControlState.PASS:
@@ -233,17 +255,21 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		
 		return obj[idx], ControlState.PASS
 	
+	@override
 	def VisitReturn(self, node):
 		val, ctrl = node.expr.Accept(self)
 		return val, ControlState.RETURN if ctrl is ControlState.PASS else ctrl
 	
+	@override
 	def VisitBreak(self, node):
 		val, ctrl = node.expr.Accept(self)
 		return val, ControlState.BREAK_LOOP if ctrl is ControlState.PASS else ctrl
 	
+	@override
 	def VisitContinue(self, node):
 		return None, ControlState.CONT_LOOP
 	
+	@override
 	def VisitIfElse(self, node):
 		scope = Environment.Nest(self.env)
 		ev = Evaluate(scope)
@@ -251,6 +277,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		assert ctrl is ControlState.PASS
 		return node.true_branch.Accept(ev) if cond else node.false_branch.Accept(ev)
 	
+	@override
 	def VisitWhileElse(self, node):
 		scope = Environment.Nest(self.env)
 		ev = Evaluate(scope)
@@ -270,13 +297,16 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 				case ControlState.PASS | ControlState.CONT_LOOP:
 					pass
 	
+	@override
 	def VisitForElse(self, node):
 		# FIXME
 		return super().VisitForElse(node)
 	
+	@override
 	def VisitNamedTuple(self, node):
 		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
 	
+	@override
 	def VisitNamedStruct(self, node):
 		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
 
@@ -285,34 +315,114 @@ class Declare(lang_ast.Visitor[None]):
 	def __init__(self, env: Environment):
 		self.env = env
 	
+	@override
 	def VisitInt(self, node):
 		pass
 	
+	@override
 	def VisitStr(self, node):
 		pass
 	
+	@override
 	def VisitBool(self, node):
 		pass
 	
+	@override
 	def VisitLabel(self, node):
 		self.env.Push(node.token.GetText(), None)
 	
+	@override
 	def VisitCompound(self, node):
 		assert len(node.nodes) == 1, "Declare compound node with more than one statement"
 		node.nodes[0].Accept(self)
 	
+	@override
+	def VisitDecl(self, node):
+		raise RuntimeError
+	
+	@override
 	def VisitAssign(self, node):
 		"""For struct unwind."""
 		node.expr.Accept(self)
 	
+	@override
+	def VisitFunc(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitTemplate(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitApply(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitUnion(self, node):
+		raise RuntimeError
+	
+	@override
 	def VisitTuple(self, node):
 		for node in node.nodes:
 			node.Accept(self)
 	
+	@override
 	def VisitStruct(self, node):
 		for field in node.fields:
 			assert isinstance(field, lang_ast.NodeAssign)
 			field.Accept(self)
+	
+	@override
+	def VisitLogicalOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitBinaryOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitUnaryOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitAccess(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitIndex(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitReturn(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitBreak(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitContinue(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitIfElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitWhileElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitForElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitNamedTuple(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitNamedStruct(self, node):
+		raise RuntimeError
 
 
 class Unwind(lang_ast.Visitor[None]):
@@ -320,26 +430,33 @@ class Unwind(lang_ast.Visitor[None]):
 		self.val = val
 		self.env = env
 	
+	@override
 	def VisitInt(self, node):
 		assert isinstance(self.val, int) and self.val == int(node.token.GetText())
 	
+	@override
 	def VisitStr(self, node):
 		assert isinstance(self.val, str) and self.val == node.token.GetText()
 	
+	@override
 	def VisitBool(self, node):
 		assert isinstance(self.val, bool) and self.val == (node.token.GetText().lower() == "true")
 	
+	@override
 	def VisitLabel(self, node):
 		self.env.Update(node.token.GetText(), self.val)
 	
+	@override
 	def VisitCompound(self, node):
 		assert len(node.nodes) == 1, "Unwind compound node with more than one statement"
 		node.nodes[0].Accept(self)
 	
+	@override
 	def VisitDecl(self, node):
 		node.var.Accept(Declare(self.env))
 		node.var.Accept(self)
 	
+	@override
 	def VisitAssign(self, node):
 		"""For struct unwind."""
 		assert isinstance(node.var, lang_ast.NodeDecl)
@@ -349,14 +466,84 @@ class Unwind(lang_ast.Visitor[None]):
 		assert ctrl is ControlState.PASS
 		node.expr.Accept(Unwind(data, self.env))
 	
+	@override
+	def VisitFunc(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitTemplate(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitApply(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitUnion(self, node):
+		raise RuntimeError
+	
+	@override
 	def VisitTuple(self, node):
 		assert isinstance(self.val, tuple), f"Expected tuple, got {type(self.val)}"
 		assert len(self.val) == len(node.nodes)
 		for i, node in enumerate(node.nodes):
 			node.Accept(Unwind(self.val[i], self.env))
 	
+	@override
 	def VisitStruct(self, node):
 		assert isinstance(self.val, dict), f"Expect dict (struct), got {type(self.val)}"
 		for field in node.fields:
 			assert isinstance(field, lang_ast.NodeAssign)
 			field.Accept(self)
+	
+	@override
+	def VisitLogicalOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitBinaryOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitUnaryOp(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitAccess(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitIndex(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitReturn(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitBreak(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitContinue(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitIfElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitWhileElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitForElse(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitNamedTuple(self, node):
+		raise RuntimeError
+	
+	@override
+	def VisitNamedStruct(self, node):
+		raise RuntimeError
