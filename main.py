@@ -15,22 +15,20 @@ if __name__ == "__main__":
 	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
 	print("===== Reproduced Source Code (May not be 100%% correct) =====")
 	print("\n".join(ast.Accept(ToOLangCode("    "))))
-	print("")
+	print()
 	
 	parser = syntax.BuildLR1Parser()
 	print("===== LR(1) Parser State =====")
 	print(parser)
-	print("")
+	print()
 	
 	ast2 = parser.Parse(scanner.Tokenize(source_code))
 	print("===== Source Code AST =====")
 	print(ast2)
-	print("")
+	print()
 	
-	scope = Environment.New()
-	assert isinstance(ast, lang_ast.NodeCompound)
-	_, _ = Evaluate(scope).EvalCompound(ast)
-	func = scope.Resolve("test")
+	module, _ = ast.Accept(Evaluate(Environment.New()))
+	func = module["test"]
 	arg = 5, 7
 	# arg = 5, 1
 	result, ctrl = func(arg)
