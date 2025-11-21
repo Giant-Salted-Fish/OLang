@@ -1,5 +1,5 @@
-from typing import Iterable, Sequence, Iterator, Callable
 import re
+from collections.abc import Callable, Iterable, Sequence
 
 
 class Token[T]:
@@ -35,7 +35,7 @@ class Scanner[T]:
 		self._match_lst = match_lst
 		self._match_space = match_space
 	
-	def Tokenize(self, src: str) -> Iterator[Token[T]]:
+	def Tokenize(self, src: str):
 		line_num = 0
 		col_idx = 0
 		lines = src.splitlines()
@@ -61,7 +61,7 @@ class Scanner[T]:
 				
 				col_idx += token_len
 			line_num += 1
-		yield Token(None, lines, line_num - 1, col_idx, 0)
+		yield Token[T](None, lines, line_num - 1, col_idx, 0)
 	
 	@classmethod
 	def Build(cls, types: Iterable[tuple[T, str]]):

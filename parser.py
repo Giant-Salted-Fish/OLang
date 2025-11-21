@@ -1,5 +1,6 @@
 from scanner import Token
-from typing import Iterable, Iterator, Collection, Callable, NamedTuple, Sequence
+from typing import NamedTuple
+from collections.abc import Callable, Iterable, Iterator, Collection, Sequence
 
 
 class Production[N, T, R](NamedTuple):
@@ -156,7 +157,7 @@ class Syntax[N, T, R]:
 	
 	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [self.BuildInitialState()]
-		action_stack: list[R | Token] = []
+		action_stack: list[R | Token[T]] = []
 		accept = False
 		for token in token_stream:
 			if accept:
@@ -287,7 +288,7 @@ class Parser[N, T, R]:
 	
 	def Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [0]
-		action_stack: list[R | Token] = []
+		action_stack: list[R | Token[T]] = []
 		accept = False
 		for token in token_stream:
 			if accept:

@@ -188,7 +188,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		return self._ExecuteBinaryOp(node.op, x, y), ControlState.PASS
 	
 	@staticmethod
-	def _ExecuteBinaryOp(op: scanner.Token, x: Any, y: Any) -> Any:
+	def _ExecuteBinaryOp(op: scanner.Token, x: Any, y: Any):
 		match op.GetType():
 			case "+":
 				return x + y
@@ -217,13 +217,13 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitUnaryOp(self, node):
-		val, ctrl = node.node.Accept(self)
+		val, ctrl = node.expr.Accept(self)
 		if ctrl is not ControlState.PASS:
 			return val, ctrl
 		return self._ExecuteUnaryOp(node.op, val), ControlState.PASS
 	
 	@staticmethod
-	def _ExecuteUnaryOp(op: scanner.Token, val: Any) -> Any:
+	def _ExecuteUnaryOp(op: scanner.Token, val: Any):
 		match op.GetText():
 			case "+":
 				return val

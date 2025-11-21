@@ -5,7 +5,7 @@ from lang_ast import (
 	NodeUnaryOp, NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse,
 	NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
-from typing import Callable
+from collections.abc import Callable
 
 
 TOKEN_TYPES = [
@@ -379,7 +379,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(;|,)", (";",), lambda SEMI: SEMI),
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
-PRODUCTIONS: list[Production[str, str, Node]] = [Production(*p) for p in SYNTAX_RULES]
+PRODUCTIONS = [Production(*p) for p in SYNTAX_RULES]
 
 
 def ensure_compound(node: Node):

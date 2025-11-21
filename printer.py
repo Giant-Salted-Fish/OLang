@@ -7,7 +7,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	Convert given AST back to corresponding OLang code.
 	"""
 	
-	def __init__(self, indent="\t"):
+	def __init__(self, indent="    "):
 		self._indent = indent
 	
 	@override
@@ -124,7 +124,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	
 	@override
 	def VisitUnaryOp(self, node):
-		val = node.node.Accept(self)
+		val = node.expr.Accept(self)
 		lines = [f"{node.op.GetText()}{val[0]}", *val[1:]]
 		return self._AppendAttrText(node, lines)
 	
@@ -195,7 +195,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		lines = self._PrefixText("struct ", lines)
 		return self._AppendAttrText(node, lines)
 	
-	def _AppendAttrText(self, node: lang_ast.Node, lines: list[str]) -> list[str]:
+	def _AppendAttrText(self, node: lang_ast.Node, lines: list[str]):
 		text = self._GenAttrText("@", node.prefix)
 		if len(text) == 1:
 			text = self._JoinText(" ", text, lines)
@@ -216,20 +216,20 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		return [line for lines in allAttrLines for line in self._PrefixText(prefix, lines)]
 	
 	@staticmethod
-	def _PrefixText(pre: str, text: list[str]) -> list[str]:
+	def _PrefixText(pre: str, text: list[str]):
 		if len(text) == 0:
 			return [pre]
 		else:
 			return [f"{pre}{text[0]}", *text[1:]]
 	
 	@staticmethod
-	def _SuffixText(suf: str, text: list[str]) -> list[str]:
+	def _SuffixText(suf: str, text: list[str]):
 		if len(text) == 0:
 			return [suf]
 		else:
 			return [*text[:-1], f"{text[-1]}{suf}"]
 	
-	def _EncloseText(self, left: str, right: str, text: list[str], force_new_line=False) -> list[str]:
+	def _EncloseText(self, left: str, right: str, text: list[str], force_new_line=False):
 		def Block():
 			return [left, *(f"{self._indent}{line}" for line in text), right]
 		
@@ -245,7 +245,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 				return Block()
 	
 	@staticmethod
-	def _JoinText(joiner: str, *text: list[str]) -> list[str]:
+	def _JoinText(joiner: str, *text: list[str]):
 		while text:
 			result, text = text[0], text[1:]
 			if result:
