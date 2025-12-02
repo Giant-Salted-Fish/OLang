@@ -382,5 +382,5 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 PRODUCTIONS = [Production(*p) for p in SYNTAX_RULES]
 
 
-def ensure_compound(node: Node):
+def ensure_compound(node: Node) -> NodeCompound:
 	return node if isinstance(node, NodeCompound) else NodeCompound(node)

@@ -1,8 +1,10 @@
 import re
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
+from typing import Any, override
 
 
 class Token[T]:
+	@override
 	def __init__(self, type_: T | None, lines: Sequence[str], line_num: int, col_idx: int, token_len: int):
 		self._type = type_
 		self._lines = lines
@@ -10,32 +12,34 @@ class Token[T]:
 		self._col_idx = col_idx
 		self._token_len = token_len
 	
-	def GetType(self):
+	def GetType(self) -> T | None:
 		return self._type
 	
-	def GetText(self):
+	def GetText(self) -> str:
 		return self._lines[self._line_num][self._col_idx:self._col_idx + self._token_len]
 	
-	def GetLineNum(self):
+	def GetLineNum(self) -> int:
 		return self._line_num + 1
 	
-	def GetColumnNum(self):
+	def GetColumnNum(self) -> int:
 		return self._col_idx + 1
 	
-	def __str__(self):
+	@override
+	def __str__(self) -> str:
 		return f"Token(type={repr(self.GetType())}, value={repr(self.GetText())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
 
 
 class Scanner[T]:
+	@override
 	def __init__(
 		self,
 		match_lst: Iterable[tuple[T, Callable[[str, int], int]]],
 		match_space: Callable[[str, int], int]
-	):
+	) -> None:
 		self._match_lst = match_lst
 		self._match_space = match_space
 	
-	def Tokenize(self, src: str):
+	def Tokenize(self, src: str) -> Generator[Token[T], Any, None]:
 		line_num = 0
 		col_idx = 0
 		lines = src.splitlines()
@@ -64,10 +68,10 @@ class Scanner[T]:
 		yield Token[T](None, lines, line_num - 1, col_idx, 0)
 	
 	@classmethod
-	def Build(cls, types: Iterable[tuple[T, str]]):
-		def build_matcher(pattern: str):
+	def Build(cls, types: Iterable[tuple[T, str]]) -> "Scanner[T]":
+		def build_matcher(pattern: str) -> Callable[..., int]:
 			r = re.compile(pattern)
-			def match(s: str, offset: int):
+			def match(s: str, offset: int) -> int:
 				m = r.match(s, offset)
 				if m is None:
 					return 0

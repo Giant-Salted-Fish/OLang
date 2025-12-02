@@ -1,4 +1,4 @@
-from typing import override
+from typing import Self, override
 from abc import ABC, abstractmethod
 from scanner import Token
 
@@ -11,370 +11,395 @@ class Node(ABC):
 	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		pass
 	
-	def AppendPrefix(self, *attr: "Node"):
+	def AppendPrefix(self, *attr: "Node") -> Self:
 		self.prefix = self.prefix + attr
 		return self
 	
-	def AppendSuffix(self, *attr: "Node"):
+	def AppendSuffix(self, *attr: "Node") -> Self:
 		self.suffix = self.suffix + attr
 		return self
 	
-	def _GenStr(self, fields: str):
+	def _GenStr(self, fields: str) -> str:
 		pre = f", prefix={';'.join(str(attr) for attr in self.prefix)}" if self.prefix else ""
 		suf = f", suffix={';'.join(str(attr) for attr in self.suffix)}" if self.suffix else ""
 		return f"{self.__class__.__name__}({fields}{pre}{suf})"
 
 
 class NodeInt(Node):
-	def __init__(self, token: Token):
+	@override
+	def __init__(self, token: Token) -> None:
 		self.token = token
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(self.token.GetText())
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitInt(self)
 
 
 class NodeLabel(Node):
-	def __init__(self, token: Token):
+	@override
+	def __init__(self, token: Token) -> None:
 		self.token = token
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitLabel(self)
 
 
 class NodeStr(Node):
-	def __init__(self, token: Token):
+	@override
+	def __init__(self, token: Token) -> None:
 		self.token = token
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitStr(self)
 
 
 class NodeBool(Node):
-	def __init__(self, token: Token):
+	@override
+	def __init__(self, token: Token) -> None:
 		self.token = token
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitBool(self)
 
 
 class NodeCompound(Node):
-	def __init__(self, *nodes: Node):
+	@override
+	def __init__(self, *nodes: Node) -> None:
 		self.nodes = nodes
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitCompound(self)
 
 
 class NodeDecl(Node):
-	def __init__(self, var: Node):
+	@override
+	def __init__(self, var: Node) -> None:
 		self.var = var
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.var}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitDecl(self)
 
 
 class NodeAssign(Node):
-	def __init__(self, var: Node, expr: Node):
+	@override
+	def __init__(self, var: Node, expr: Node) -> None:
 		self.var = var
 		self.expr = expr
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.var}, {self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitAssign(self)
 
 
 class NodeFunc(Node):
-	def __init__(self, param: Node, body: NodeCompound):
+	@override
+	def __init__(self, param: Node, body: NodeCompound) -> None:
 		self.param = param
 		self.body = body
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitFunc(self)
 
 
 class NodeTemplate(Node):
-	def __init__(self, param: Node, body: NodeCompound):
+	@override
+	def __init__(self, param: Node, body: NodeCompound) -> None:
 		self.param = param
 		self.body = body
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitTemplate(self)
 
 
 class NodeApply(Node):
-	def __init__(self, func: Node, arg: Node):
+	@override
+	def __init__(self, func: Node, arg: Node) -> None:
 		self.func = func
 		self.arg = arg
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.func}, {self.arg}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitApply(self)
 
 
 class NodeUnion(Node):
-	def __init__(self, *nodes: Node):
+	@override
+	def __init__(self, *nodes: Node) -> None:
 		self.nodes = nodes
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitUnion(self)
 
 
 class NodeTuple(Node):
-	def __init__(self, *nodes: Node):
+	@override
+	def __init__(self, *nodes: Node) -> None:
 		self.nodes = nodes
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitTuple(self)
 
 
 class NodeStruct(Node):
-	def __init__(self, *fields: Node):
+	@override
+	def __init__(self, *fields: Node) -> None:
 		self.fields = fields
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(repr(self.fields)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitStruct(self)
 
 
 class NodeLogicalOp(Node):
-	def __init__(self, op: Token, lhs: Node, rhs: Node):
+	@override
+	def __init__(self, op: Token, lhs: Node, rhs: Node) -> None:
 		self.op = op
 		self.lhs = lhs
 		self.rhs = rhs
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitLogicalOp(self)
 
 
 class NodeBinaryOp(Node):
-	def __init__(self, op: Token, lhs: Node, rhs: Node):
+	@override
+	def __init__(self, op: Token, lhs: Node, rhs: Node) -> None:
 		self.op = op
 		self.lhs = lhs
 		self.rhs = rhs
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitBinaryOp(self)
 
 
 class NodeUnaryOp(Node):
-	def __init__(self, op: Token, node: Node):
+	@override
+	def __init__(self, op: Token, node: Node) -> None:
 		self.op = op
 		self.expr = node
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.op}, {self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitUnaryOp(self)
 
 
 class NodeAccess(Node):
-	def __init__(self, obj: Node, field: Node):
+	@override
+	def __init__(self, obj: Node, field: Node) -> None:
 		self.obj = obj
 		self.field = field
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.obj}, {self.field}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitAccess(self)
 
 
 class NodeIndex(Node):
-	def __init__(self, obj: Node, index: Node):
+	@override
+	def __init__(self, obj: Node, index: Node) -> None:
 		self.obj = obj
 		self.index = index
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.obj}, {self.index}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitIndex(self)
 
 
 class NodeReturn(Node):
-	def __init__(self, expr: Node):
+	@override
+	def __init__(self, expr: Node) -> None:
 		self.expr = expr
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitReturn(self)
 
 
 class NodeBreak(Node):
-	def __init__(self, expr: Node):
+	@override
+	def __init__(self, expr: Node) -> None:
 		self.expr = expr
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitBreak(self)
 
 
 class NodeContinue(Node):
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr("")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitContinue(self)
 
 
 class NodeIfElse(Node):
-	def __init__(self, cond: Node, true_branch: NodeCompound, false_branch: NodeCompound):
+	@override
+	def __init__(self, cond: Node, true_branch: NodeCompound, false_branch: NodeCompound) -> None:
 		self.cond = cond
 		self.true_branch = true_branch
 		self.false_branch = false_branch
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitIfElse(self)
 
 
 class NodeWhileElse(Node):
-	def __init__(self, cond: Node, loop_body: NodeCompound, else_branch: NodeCompound):
+	@override
+	def __init__(self, cond: Node, loop_body: NodeCompound, else_branch: NodeCompound) -> None:
 		self.cond = cond
 		self.loop_body = loop_body
 		self.else_branch = else_branch
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitWhileElse(self)
 
 
 class NodeForElse(Node):
-	def __init__(self, iterable: Node, var: Node, loop_body: NodeCompound, else_branch: NodeCompound):
+	@override
+	def __init__(self, iterable: Node, var: Node, loop_body: NodeCompound, else_branch: NodeCompound) -> None:
 		self.iterable = iterable
 		self.var = var
 		self.loop_body = loop_body
 		self.else_branch = else_branch
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitForElse(self)
 
 
 class NodeNamedTuple(Node):
-	def __init__(self, body: Node):
+	@override
+	def __init__(self, body: Node) -> None:
 		self.body = body
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitNamedTuple(self)
 
 
 class NodeNamedStruct(Node):
-	def __init__(self, body: Node):
+	@override
+	def __init__(self, body: Node) -> None:
 		self.body = body
 	
 	@override
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return self._GenStr(f"{self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]"):
+	def Accept[T](self, visitor: "Visitor[T]") -> T:
 		return visitor.VisitNamedStruct(self)
 
 

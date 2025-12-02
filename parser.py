@@ -1,5 +1,5 @@
 from scanner import Token
-from typing import NamedTuple
+from typing import NamedTuple, Self, override
 from collections.abc import Callable, Iterable, Iterator, Collection, Sequence
 
 
@@ -8,7 +8,8 @@ class Production[N, T, R](NamedTuple):
 	rhs: tuple[N | T, ...]
 	action: Callable[..., R]
 	
-	def __repr__(self):
+	@override
+	def __repr__(self) -> str:
 		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}"
 
 
@@ -17,11 +18,13 @@ class Item[N, T, R](NamedTuple):
 	dot_pos: int
 	lookahead: frozenset[T | None]
 	
-	def __repr__(self):
+	@override
+	def __repr__(self) -> str:
 		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
 
 
 class Syntax[N, T, R]:
+	@override
 	def __init__(
 		self,
 		start_symbol: N,
@@ -29,17 +32,17 @@ class Syntax[N, T, R]:
 		is_terminal: Callable[[N | T], bool],
 		first_sets: dict[N, set[T]],
 		epsilons: Collection[N]
-	):
+	) -> None:
 		self._start_symbol = start_symbol
 		self._symbol_2_production = symbol_2_production
 		self._is_terminal = is_terminal
 		self._first_sets = first_sets
 		self._epsilons = epsilons
 	
-	def GetStartSymbol(self):
+	def GetStartSymbol(self) -> N:
 		return self._start_symbol
 	
-	def GetProductionsOf(self, lhs: N):
+	def GetProductionsOf(self, lhs: N) -> Collection[Production[N, T, R]]:
 		return self._symbol_2_production[lhs]
 	
 	def CheckSymbolType(self, symbol: N | T) -> tuple[N, None] | tuple[None, T]:
@@ -48,18 +51,18 @@ class Syntax[N, T, R]:
 		else:
 			return symbol, None  # type: ignore
 	
-	def GetFirstSet(self, symbol: N):
+	def GetFirstSet(self, symbol: N) -> set[T]:
 		return self._first_sets[symbol]
 	
-	def CanProduceEpsilon(self, symbol: N):
+	def CanProduceEpsilon(self, symbol: N) -> bool:
 		return symbol in self._epsilons
 	
-	def BuildInitialState(self):
+	def BuildInitialState(self) -> frozenset[Item[N, T, R]]:
 		return self.ExpandState([(prod, 0, (None,)) for prod in self.GetProductionsOf(self._start_symbol)])
 	
-	def ExpandState(self, items: Iterable[tuple[Production[N, T, R], int, Iterable[T | None]]]):
+	def ExpandState(self, items: Iterable[tuple[Production[N, T, R], int, Iterable[T | None]]]) -> frozenset[Item[N, T, R]]:
 		new_state: dict[tuple[Production[N, T, R], int], set[T | None]] = {}
-		def expand_item(production: Production[N, T, R], dot_pos: int, lookahead: set[T | None]):
+		def expand_item(production: Production[N, T, R], dot_pos: int, lookahead: set[T | None]) -> None:
 			if (production, dot_pos) in new_state:
 				prev_lookahead = new_state[production, dot_pos]
 				if prev_lookahead.issuperset(lookahead):
@@ -103,7 +106,7 @@ class Syntax[N, T, R]:
 			for (item, dot_pos), lookahead in new_state.items()
 		)
 	
-	def BuildLR1Parser(self):
+	def BuildLR1Parser(self) -> "Parser[N, T, R]":
 		state_table: dict[frozenset[Item[N, T, R]], int] = {}
 		shift_table: dict[tuple[int, T | None], int] = {}  # Can be typed as dist[tuple[int, T], int]
 		reduce_table: dict[tuple[int, T | None], Production[N, T, R]] = {}
@@ -226,7 +229,7 @@ class Syntax[N, T, R]:
 		return action_stack[-1]  # type: ignore
 	
 	@classmethod
-	def Build(cls, production_rules: Sequence[Production[N, T, R]], is_terminal: Callable[[N | T], bool]):
+	def Build(cls, production_rules: Sequence[Production[N, T, R]], is_terminal: Callable[[N | T], bool]) -> Self:
 		symbol_2_production = {}
 		for prod in production_rules:
 			symbol_2_production.setdefault(prod.lhs, []).append(prod)
@@ -269,6 +272,7 @@ class Syntax[N, T, R]:
 
 
 class Parser[N, T, R]:
+	@override
 	def __init__(
 		self,
 		syntax: Syntax,
@@ -276,13 +280,14 @@ class Parser[N, T, R]:
 		shift_table: dict[tuple[int, T | None], int],
 		reduce_table: dict[tuple[int, T | None], Production[N, T, R]],
 		goto_table: dict[tuple[int, N], int]
-	):
+	) -> None:
 		self._syntax = syntax
 		self._state_table = state_table
 		self._shift_table = shift_table
 		self._reduce_table = reduce_table
 		self._goto_table = goto_table
 	
+	@override
 	def __str__(self):
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
@@ -327,9 +332,9 @@ class Parser[N, T, R]:
 			raise Exception("Not enough tokens")
 		return action_stack[-1]  # type: ignore
 	
-	def Serialize(self, line_writer: Callable[[str], None]):
+	def Serialize(self, line_writer: Callable[[str], None]) -> None:
 		pass
 	
 	@classmethod
-	def Deserialize(cls, line_reader: Iterator[str]):
+	def Deserialize(cls, line_reader: Iterator[str]) -> None:
 		pass
