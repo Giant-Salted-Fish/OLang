@@ -107,7 +107,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitFunc(self, node: lang_ast.NodeFunc) -> tuple[Any, ControlState]:
-		def func(arg) -> tuple[Any, ControlState]:
+		def func(arg: Any) -> tuple[Any, ControlState]:
 			scope = Environment.Nest(self.env)
 			node.param.Accept(Declare(scope))
 			node.param.Accept(Unwind(arg, scope))
@@ -118,7 +118,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitTemplate(self, node: lang_ast.NodeTemplate) -> tuple[Any, ControlState]:
-		def tmplt(arg) -> tuple[Any, ControlState]:
+		def tmplt(arg: Any) -> tuple[Any, ControlState]:
 			scope = Environment.Nest(self.env)
 			node.param.Accept(Declare(scope))
 			node.param.Accept(Unwind(arg, scope))
@@ -128,7 +128,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		return tmplt, ControlState.PASS
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> tuple[Any, ControlState]:
+	def VisitCall(self, node: lang_ast.NodeCall) -> tuple[Any, ControlState]:
 		func, ctrl = node.func.Accept(self)
 		if ctrl is not ControlState.PASS:
 			return func, ctrl
@@ -357,7 +357,7 @@ class Declare(lang_ast.Visitor[None]):
 		raise RuntimeError
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> None:
+	def VisitCall(self, node: lang_ast.NodeCall) -> None:
 		raise RuntimeError
 	
 	@override
@@ -479,7 +479,7 @@ class Unwind(lang_ast.Visitor[None]):
 		raise RuntimeError
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> None:
+	def VisitCall(self, node: lang_ast.NodeCall) -> None:
 		raise RuntimeError
 	
 	@override

@@ -1,7 +1,7 @@
 from parser import Production
 from lang_ast import (
 	Node, NodeInt, NodeLabel, NodeStr, NodeBool, NodeCompound, NodeDecl, NodeAssign, NodeFunc,
-	NodeTemplate, NodeApply, NodeUnion, NodeTuple, NodeStruct, NodeLogicalOp, NodeBinaryOp,
+	NodeTemplate, NodeCall, NodeUnion, NodeTuple, NodeStruct, NodeLogicalOp, NodeBinaryOp,
 	NodeUnaryOp, NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse,
 	NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
@@ -13,7 +13,7 @@ TOKEN_TYPES = [
 	("CONTINUE", r"continue"),
 	("STRUCT", r"struct"),
 	("RETURN", r"return"),
-	("INLINE", r"inline"),  # Comment out this to disable inline keyword.
+	("INLAY", r"inlay"),  # Comment out this to disable inlay keyword.
 	("BREAK", r"break"),
 	("TUPLE", r"tuple"),
 	("WHILE", r"while"),
@@ -272,12 +272,12 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("ctrl_mul", ("ctrl_mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("ctrl_mul", ("ctrl",), lambda x: x),
 	
-	# unary: (+|-|!|&|*)* (call|bound|prefix)
+	# unary: (+|-|!|&|*)* (call|inlay|prefixed)
 	#      | (+|-|!|&|*)+ ctrl
 	("unary", ("(+|-|!|&|*)", "unary"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("(+|-|!|&|*)", "ctrl"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("call",), lambda x: x),
-	("unary", ("inline_ctrl",), lambda x: x),
+	("unary", ("inlay",), lambda x: x),
 	("unary", ("prefixed",), lambda x: x),
 	("(+|-|!|&|*)", ("+",), lambda PLUS: PLUS),
 	("(+|-|!|&|*)", ("-",), lambda MINUS: MINUS),
@@ -285,10 +285,16 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
 	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
-	# call: post+ (ctrl|bound|prefixed)
-	("call", ("post+", "ctrl"), lambda func, arg: NodeApply(func, arg)),
-	("call", ("post+", "inline_ctrl"), lambda func, arg: NodeApply(func, arg)),
-	("call", ("post+", "prefixed"), lambda func, arg: NodeApply(func, arg)),
+	# call: post+ (inlay|ctrl|prefixed)
+	("call", ("post+", "inlay"), lambda func, arg: NodeCall(func, arg)),
+	("call", ("post+", "ctrl"), lambda func, arg: NodeCall(func, arg)),
+	("call", ("post+", "prefixed"), lambda func, arg: NodeCall(func, arg)),
+	
+	# inlay: prefix* INLAY ctrl
+	#      | bound
+	("inlay", ("prefix*", "INLAY", "ctrl"), lambda attr, INLAY, x: x.AppendPrefix(*attr)),
+	# ("inlay", ("prefix*", "INLAY", "bound"), lambda attr, INLAY, x: x.AppendPrefix(*attr)),  # Is this necessary?
+	("inlay", ("bound",), lambda x: x),
 	
 	# ctrl: prefix* IF bound (prefix* THEN)? bound else?
 	#     | prefix* WHILE bound bound else?
@@ -304,14 +310,6 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("else", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
 	("else", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: ensure_compound(x).AppendPrefix(*attr)),
 	("else", (), lambda: NodeCompound()),
-	
-	# inline_ctrl: prefix* INLINE (IF|WHILE) bound bound else?
-	#            | prefix* INLINE FOR bound bound bound else?
-	#            | bound
-	("inline_ctrl", ("prefix*", "INLINE", "IF", "bound", "bound", "else"), lambda attr, INLINE, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
-	("inline_ctrl", ("prefix*", "INLINE", "WHILE", "bound", "bound", "else"), lambda attr, INLINE, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
-	("inline_ctrl", ("prefix*", "INLINE", "FOR", "bound", "bound", "bound", "else"), lambda attr, INLINE, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
-	("inline_ctrl", ("bound",), lambda x: x),
 	
 	# It is named "bound" even if its length can go infinite, as it has a clear terminator that indicates the end of this element.
 	# bound: prefix* (TMPLT|FN) bound bound
@@ -331,7 +329,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: x[1](x[0]).AppendPrefix(*attr_lst, attr)),
 	("prefix*", ("prefix*", "@", "post+"), lambda lst, AT, attr: (*lst, attr)),
 	("prefix*", (), lambda: ()),
-	("post+", ("post+", "post"), lambda head, x: x[1](NodeApply(head, x[0]))),
+	("post+", ("post+", "post"), lambda head, x: x[1](NodeCall(head, x[0]))),
 	("post+", ("post",), lambda x: x[1](x[0])),
 	
 	# post: prim postfix*

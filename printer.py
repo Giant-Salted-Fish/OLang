@@ -67,7 +67,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		return self._AppendAttrText(node, lines)
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> list[str]:
+	def VisitCall(self, node: lang_ast.NodeCall) -> list[str]:
 		func = node.func.Accept(self)
 		arg = node.arg.Accept(self)
 		lines = self._JoinText(" ", func, arg)

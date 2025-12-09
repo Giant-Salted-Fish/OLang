@@ -154,7 +154,7 @@ class NodeTemplate(Node):
 		return visitor.VisitTemplate(self)
 
 
-class NodeApply(Node):
+class NodeCall(Node):
 	@override
 	def __init__(self, func: Node, arg: Node) -> None:
 		self.func = func
@@ -166,7 +166,7 @@ class NodeApply(Node):
 	
 	@override
 	def Accept[T](self, visitor: "Visitor[T]") -> T:
-		return visitor.VisitApply(self)
+		return visitor.VisitCall(self)
 
 
 class NodeUnion(Node):
@@ -441,7 +441,7 @@ class Visitor[T](ABC):
 		pass
 	
 	@abstractmethod
-	def VisitApply(self, node: NodeApply) -> T:
+	def VisitCall(self, node: NodeCall) -> T:
 		pass
 	
 	@abstractmethod

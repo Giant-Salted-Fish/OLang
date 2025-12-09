@@ -52,10 +52,10 @@ class ApplyPostOrder(lang_ast.Visitor[lang_ast.Node]):
 		return self.transformer.VisitTemplate(node)
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> lang_ast.Node:
+	def VisitCall(self, node: lang_ast.NodeCall) -> lang_ast.Node:
 		node.arg = node.arg.Accept(self)
 		node.func = node.func.Accept(self)
-		return self.transformer.VisitApply(node)
+		return self.transformer.VisitCall(node)
 	
 	@override
 	def VisitUnion(self, node: lang_ast.NodeUnion) -> lang_ast.Node:
@@ -187,7 +187,7 @@ class IdentityProcessor(lang_ast.Visitor[lang_ast.Node]):
 		return node
 	
 	@override
-	def VisitApply(self, node: lang_ast.NodeApply) -> lang_ast.Node:
+	def VisitCall(self, node: lang_ast.NodeCall) -> lang_ast.Node:
 		return node
 	
 	@override
