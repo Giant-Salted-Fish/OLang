@@ -139,125 +139,124 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("last_else", ("prefix*", "ELSE", "bound", "last_stmt"), lambda attr, ELSE, x, follow: (ensure_compound(x).AppendPrefix(*attr), *follow)),
 	("last_else", ("last_stmt",), lambda x: (NodeCompound(), *x)),
 	
-	# expr: assign
-	#     | ctrl_assign
+	# expr: (assign|..assign)
 	("expr", ("assign",), lambda x: x),
-	("expr", ("ctrl_assign",), lambda x: x),
+	("expr", ("..assign",), lambda x: x),
 	
-	# assign: let (= (let|ctrl_union))*
+	# assign: let (= (let|..union))*
 	("assign", ("let", "assign.."), lambda var, expr: NodeAssign(var, expr) if expr else var),
-	("assign..", ("=", "(let|ctrl_union)", "assign.."), lambda EQ, var, expr: NodeAssign(var, expr) if expr else var),
+	("assign..", ("=", "(let|..union)", "assign.."), lambda EQ, var, expr: NodeAssign(var, expr) if expr else var),
 	("assign..", (), lambda: None),
-	("(let|ctrl_union)", ("let",), lambda x: x),
-	("(let|ctrl_union)", ("ctrl_union",), lambda x: x),
+	("(let|..union)", ("let",), lambda x: x),
+	("(let|..union)", ("..union",), lambda x: x),
 	
-	# let: prefix* LET (union|ctrl_union)
+	# let: prefix* LET (union|..union)
 	#    | union
-	("let", ("prefix*", "LET", "(union|ctrl_union)"), lambda attr, LET, var: NodeDecl(var).AppendPrefix(*attr)),
+	("let", ("prefix*", "LET", "(union|..union)"), lambda attr, LET, var: NodeDecl(var).AppendPrefix(*attr)),
 	("let", ("union",), lambda x: x),
-	("(union|ctrl_union)", ("union",), lambda x: x),
-	("(union|ctrl_union)", ("ctrl_union",), lambda x: x),
+	("(union|..union)", ("union",), lambda x: x),
+	("(union|..union)", ("..union",), lambda x: x),
 	
-	# ctrl_assign: ctrl_union (= (union|ctrl_union))*
-	("ctrl_assign", ("ctrl_union", "assign.."), lambda var, EQ, expr: NodeAssign(var, expr) if expr else var),
+	# ..assign: ..union (= (union|..union))*
+	("..assign", ("..union", "assign.."), lambda var, EQ, expr: NodeAssign(var, expr) if expr else var),
 	
-	# union: tuple (| (tuple|ctrl_tuple))* |?
+	# union: tuple (| (tuple|..tuple))* |?
 	("union", ("tuple", "union.."), lambda x, lst: x if lst is None else NodeUnion(x, *lst)),
-	("union..", ("|", "(tuple|ctrl_tuple)", "union.."), lambda PIPE, x, lst: (x, *(lst or ()))),
+	("union..", ("|", "(tuple|..tuple)", "union.."), lambda PIPE, x, lst: (x, *(lst or ()))),
 	("union..", ("|",), lambda PIPE: ()),
 	("union..", (), lambda: None),
-	("(tuple|ctrl_tuple)", ("tuple",), lambda x: x),
-	("(tuple|ctrl_tuple)", ("ctrl_tuple",), lambda x: x),
+	("(tuple|..tuple)", ("tuple",), lambda x: x),
+	("(tuple|..tuple)", ("..tuple",), lambda x: x),
 	
-	# ctrl_union: ctrl_tuple (| (tuple|ctrl_tuple))* |?
-	("ctrl_union", ("ctrl_tuple", "union.."), lambda x, lst: x if lst is None else NodeUnion(x, *lst)),
+	# ..union: ..tuple (| (tuple|..tuple))* |?
+	("..union", ("..tuple", "union.."), lambda x, lst: x if lst is None else NodeUnion(x, *lst)),
 	
-	# tuple: suffixed (, (suffixed|ctrl_suffixed))* ,?
+	# tuple: suffixed (, (suffixed|..suffixed))* ,?
 	("tuple", ("suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
-	("tuple..", (",", "(suffixed|ctrl_suffixed)", "tuple.."), lambda COMMA, x, lst: (x, *(lst or ()))),
+	("tuple..", (",", "(suffixed|..suffixed)", "tuple.."), lambda COMMA, x, lst: (x, *(lst or ()))),
 	("tuple..", (",",), lambda COMMA: ()),
 	("tuple..", (), lambda: None),
-	("(suffixed|ctrl_suffixed)", ("suffixed",), lambda x: x),
-	("(suffixed|ctrl_suffixed)", ("ctrl_suffixed",), lambda x: x),
+	("(suffixed|..suffixed)", ("suffixed",), lambda x: x),
+	("(suffixed|..suffixed)", ("..suffixed",), lambda x: x),
 	
-	# ctrl_tuple: ctrl_suffixed (, (suffixed|ctrl_suffixed))* ,?
-	("ctrl_tuple", ("ctrl_suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
+	# ..tuple: ..suffixed (, (suffixed|..suffixed))* ,?
+	("..tuple", ("..suffixed", "tuple.."), lambda x, lst: x if lst is None else NodeTuple(x, *lst)),
 	
 	# suffixed: lmbd suffix*
 	("suffixed", ("lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
 	("suffix*", ("suffix*", ":", "lmbd"), lambda lst, COLON, attr: (*lst, attr)),
 	("suffix*", (), lambda: ()),
 	
-	# ctrl_suffixed: ctrl_lmbd suffix*
-	("ctrl_suffixed", ("ctrl_lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
+	# ..suffixed: ..lmbd suffix*
+	("..suffixed", ("..lmbd", "suffix*"), lambda x, attr: x.AppendSuffix(*attr)),
 	
-	# lmbd: or (-> (or|ctrl_or))*
+	# lmbd: or (-> (or|..or))*
 	("lmbd", ("or", "lmbd.."), lambda param, body: NodeFunc(param, ensure_compound(body)) if body else param),
-	("lmbd..", ("->", "(or|ctrl_or)", "lmbd.."), lambda ARROW, param, body: NodeFunc(param, ensure_compound(body)) if body else param),
+	("lmbd..", ("->", "(or|..or)", "lmbd.."), lambda ARROW, param, body: NodeFunc(param, ensure_compound(body)) if body else param),
 	("lmbd..", (), lambda: None),
-	("(or|ctrl_or)", ("or",), lambda x: x),
-	("(or|ctrl_or)", ("ctrl_or",), lambda x: x),
+	("(or|..or)", ("or",), lambda x: x),
+	("(or|..or)", ("..or",), lambda x: x),
 	
-	# ctrl_lmbd: ctrl_or (-> (or|ctrl_or))*
-	("ctrl_lmbd", ("ctrl_or", "lmbd.."), lambda param, body: NodeFunc(param, ensure_compound(body)) if body else param),
+	# ..lmbd: ..or (-> (or|..or))*
+	("..lmbd", ("..or", "lmbd.."), lambda param, body: NodeFunc(param, ensure_compound(body)) if body else param),
 	
-	# or: and (|| (and|ctrl_and))*
-	("or", ("or", "||", "(and|ctrl_and)"), lambda left, OR, right: NodeLogicalOp(OR, left, right)),
+	# or: and (|| (and|..and))*
+	("or", ("or", "||", "(and|..and)"), lambda left, OR, right: NodeLogicalOp(OR, left, right)),
 	("or", ("and",), lambda x: x),
-	("(and|ctrl_and)", ("and",), lambda x: x),
-	("(and|ctrl_and)", ("ctrl_and",), lambda x: x),
+	("(and|..and)", ("and",), lambda x: x),
+	("(and|..and)", ("..and",), lambda x: x),
 	
-	# ctrl_or: ctrl_and (|| (and|ctrl_and))*
-	("ctrl_or", ("ctrl_or", "||", "(and|ctrl_and)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_or", ("ctrl_and",), lambda x: x),
+	# ..or: ..and (|| (and|..and))*
+	("..or", ("..or", "||", "(and|..and)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..or", ("..and",), lambda x: x),
 	
-	# and: eq (&& (eq|ctrl_eq))*
-	("and", ("and", "&&", "(eq|ctrl_eq)"), lambda left, AND, right: NodeLogicalOp(AND, left, right)),
+	# and: eq (&& (eq|..eq))*
+	("and", ("and", "&&", "(eq|..eq)"), lambda left, AND, right: NodeLogicalOp(AND, left, right)),
 	("and", ("eq",), lambda x: x),
-	("(eq|ctrl_eq)", ("eq",), lambda x: x),
-	("(eq|ctrl_eq)", ("ctrl_eq",), lambda x: x),
+	("(eq|..eq)", ("eq",), lambda x: x),
+	("(eq|..eq)", ("..eq",), lambda x: x),
 	
-	# ctrl_and: ctrl_eq (&& (eq|ctrl_eq))*
-	("ctrl_and", ("ctrl_and", "&&", "(eq|ctrl_eq)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_and", ("ctrl_eq",), lambda x: x),
+	# ..and: ..eq (&& (eq|..eq))*
+	("..and", ("..and", "&&", "(eq|..eq)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..and", ("..eq",), lambda x: x),
 	
-	# eq: rel ((==|!=) (rel|ctrl_rel))*
-	("eq", ("eq", "(==|!=)", "(rel|ctrl_rel)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	# eq: rel ((==|!=) (rel|..rel))*
+	("eq", ("eq", "(==|!=)", "(rel|..rel)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("eq", ("rel",), lambda x: x),
 	("(==|!=)", ("==",), lambda EQ: EQ),
 	("(==|!=)", ("!=",), lambda NEQ: NEQ),
-	("(rel|ctrl_rel)", ("rel",), lambda x: x),
-	("(rel|ctrl_rel)", ("ctrl_rel",), lambda x: x),
+	("(rel|..rel)", ("rel",), lambda x: x),
+	("(rel|..rel)", ("..rel",), lambda x: x),
 	
-	# ctrl_eq: ctrl_rel ((==|!=) (rel|ctrl_rel))*
-	("ctrl_eq", ("ctrl_eq", "(==|!=)", "(rel|ctrl_rel)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_eq", ("ctrl_rel",), lambda x: x),
+	# ..eq: ..rel ((==|!=) (rel|..rel))*
+	("..eq", ("..eq", "(==|!=)", "(rel|..rel)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..eq", ("..rel",), lambda x: x),
 	
-	# rel: add ((<=|>=|<|>) (add|ctrl_add))*
-	("rel", ("rel", "(<=|>=|<|>)", "(add|ctrl_add)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	# rel: add ((<=|>=|<|>) (add|..add))*
+	("rel", ("rel", "(<=|>=|<|>)", "(add|..add)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("rel", ("add",), lambda x: x),
 	("(<=|>=|<|>)", (">=",), lambda GTE: GTE),
 	("(<=|>=|<|>)", ("<=",), lambda LSE: LSE),
 	("(<=|>=|<|>)", (">",), lambda GT: GT),
 	("(<=|>=|<|>)", ("<",), lambda LS: LS),
-	("(add|ctrl_add)", ("add",), lambda x: x),
-	("(add|ctrl_add)", ("ctrl_add",), lambda x: x),
+	("(add|..add)", ("add",), lambda x: x),
+	("(add|..add)", ("..add",), lambda x: x),
 	
-	# ctrl_rel: ctrl_add ((<=|>=|<|>) (add|ctrl_add))*
-	("ctrl_rel", ("ctrl_rel", "(<=|>=|<|>)", "(add|ctrl_add)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_rel", ("ctrl_add",), lambda x: x),
+	# ..rel: ..add ((<=|>=|<|>) (add|..add))*
+	("..rel", ("..rel", "(<=|>=|<|>)", "(add|..add)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..rel", ("..add",), lambda x: x),
 	
-	# add: mul ((+|-) (mul|ctrl_mul))*
-	("add", ("add", "(+|-)", "(mul|ctrl_mul)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	# add: mul ((+|-) (mul|..mul))*
+	("add", ("add", "(+|-)", "(mul|..mul)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("add", ("mul",), lambda x: x),
 	("(+|-)", ("+",), lambda PLUS: PLUS),
 	("(+|-)", ("-",), lambda MINUS: MINUS),
-	("(mul|ctrl_mul)", ("mul",), lambda x: x),
-	("(mul|ctrl_mul)", ("ctrl_mul",), lambda x: x),
+	("(mul|..mul)", ("mul",), lambda x: x),
+	("(mul|..mul)", ("..mul",), lambda x: x),
 	
-	# ctrl_add: ctrl_mul ((+|-) (mul|ctrl_mul))*
-	("ctrl_add", ("ctrl_add", "(+|-)", "(mul|ctrl_mul)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_add", ("ctrl_mul",), lambda x: x),
+	# ..add: ..mul ((+|-) (mul|..mul))*
+	("..add", ("..add", "(+|-)", "(mul|..mul)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..add", ("..mul",), lambda x: x),
 	
 	# mul: unary ((*|/|%) (unary|ctrl))*
 	("mul", ("mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
@@ -268,9 +267,9 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(unary|ctrl)", ("unary",), lambda x: x),
 	("(unary|ctrl)", ("ctrl",), lambda x: x),
 	
-	# ctrl_mul: ctrl ((*|/|%) (unary|ctrl))*
-	("ctrl_mul", ("ctrl_mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
-	("ctrl_mul", ("ctrl",), lambda x: x),
+	# ..mul: ctrl ((*|/|%) (unary|ctrl))*
+	("..mul", ("..mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..mul", ("ctrl",), lambda x: x),
 	
 	# unary: (+|-|!|&|*)* (call|inlay|prefixed)
 	#      | (+|-|!|&|*)+ ctrl
@@ -285,10 +284,10 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
 	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
-	# call: post+ (inlay|ctrl|prefixed)
-	("call", ("post+", "inlay"), lambda func, arg: NodeCall(func, arg)),
-	("call", ("post+", "ctrl"), lambda func, arg: NodeCall(func, arg)),
-	("call", ("post+", "prefixed"), lambda func, arg: NodeCall(func, arg)),
+	# call: postfixed+ (inlay|ctrl|prefixed)
+	("call", ("postfixed+", "inlay"), lambda func, arg: NodeCall(func, arg)),
+	("call", ("postfixed+", "ctrl"), lambda func, arg: NodeCall(func, arg)),
+	("call", ("postfixed+", "prefixed"), lambda func, arg: NodeCall(func, arg)),
 	
 	# inlay: prefix* INLAY ctrl
 	#      | bound
@@ -316,25 +315,25 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	#      | prefix* (STRUCT|TUPLE) bound
 	#      | prefix* { stmt_lst }
 	#      | prefix* .{ stmt_lst }
-	#      | post
+	#      | postfixed
 	("bound", ("prefix*", "TMPLT", "bound", "bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, ensure_compound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "bound", "bound"), lambda attr, FN, param, body: NodeFunc(param, ensure_compound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
 	("bound", ("prefix*", "TUPLE", "bound"), lambda attr, TUPLE, body: NodeNamedTuple(body).AppendPrefix(*attr)),
-	("bound", ("prefix*", "{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, post: post(NodeCompound(*lst)).AppendPrefix(*attr)),
-	("bound", ("prefix*", ".{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, post: post(NodeStruct(*lst)).AppendPrefix(*attr)),
-	("bound", ("post",), lambda x: x[1](x[0])),
+	("bound", ("prefix*", "{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, pst: pst(NodeCompound(*lst)).AppendPrefix(*attr)),
+	("bound", ("prefix*", ".{", "stmt_lst", "}", "postfix*"), lambda attr, LCB, lst, RCB, pst: pst(NodeStruct(*lst)).AppendPrefix(*attr)),
+	("bound", ("postfixed",), lambda x: x[1](x[0])),
 	
-	# prefixed: prefix* @ post+ post
-	("prefixed", ("prefix*", "@", "post+", "post"), lambda attr_lst, AT, attr, x: x[1](x[0]).AppendPrefix(*attr_lst, attr)),
-	("prefix*", ("prefix*", "@", "post+"), lambda lst, AT, attr: (*lst, attr)),
+	# prefixed: prefix* @ postfixed+ postfixed
+	("prefixed", ("prefix*", "@", "postfixed+", "postfixed"), lambda attr_lst, AT, attr, x: x[1](x[0]).AppendPrefix(*attr_lst, attr)),
+	("prefix*", ("prefix*", "@", "postfixed+"), lambda lst, AT, attr: (*lst, attr)),
 	("prefix*", (), lambda: ()),
-	("post+", ("post+", "post"), lambda head, x: x[1](NodeCall(head, x[0]))),
-	("post+", ("post",), lambda x: x[1](x[0])),
+	("postfixed+", ("postfixed+", "postfixed"), lambda head, x: x[1](NodeCall(head, x[0]))),
+	("postfixed+", ("postfixed",), lambda x: x[1](x[0])),
 	
-	# post: prim postfix*
-	("post", ("prim", "postfix*"), lambda x, post: (x, post)),
-	("postfix*", ("postfix*", "postfix"), lambda head, post: lambda node: post(head(node))),
+	# postfixed: prim postfix*
+	("postfixed", ("prim", "postfix*"), lambda x, pst: (x, pst)),
+	("postfix*", ("postfix*", "postfix"), lambda head, pst: lambda node: pst(head(node))),
 	("postfix*", (), lambda: lambda x: x),
 	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),
 	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
@@ -361,8 +360,8 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	
 	# element_lst: element , element_lst
 	#            | element?
-	("element_lst", ("(suffixed|ctrl_suffixed)", ",", "element_lst"), lambda e, COMMA, lst: (e, *lst)),
-	("element_lst", ("(suffixed|ctrl_suffixed)",), lambda e: (e,)),
+	("element_lst", ("(suffixed|..suffixed)", ",", "element_lst"), lambda e, COMMA, lst: (e, *lst)),
+	("element_lst", ("(suffixed|..suffixed)",), lambda e: (e,)),
 	("element_lst", (), lambda: ()),
 	
 	# field_lst: field_set (;|,) field_lst
