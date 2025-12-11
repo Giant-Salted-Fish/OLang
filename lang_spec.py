@@ -258,22 +258,25 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("..add", ("..add", "(+|-)", "(mul|..mul)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("..add", ("..mul",), lambda x: x),
 	
-	# mul: unary ((*|/|%) (unary|ctrl))*
-	("mul", ("mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	# mul: unary ((*|/|%) (unary|decl|ctrl))*
+	("mul", ("mul", "(*|/|%)", "(unary|decl|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
 	("mul", ("unary",), lambda x: x),
 	("(*|/|%)", ("*",), lambda MUL: MUL),
 	("(*|/|%)", ("/",), lambda DIV: DIV),
 	("(*|/|%)", ("%",), lambda MOD: MOD),
-	("(unary|ctrl)", ("unary",), lambda x: x),
-	("(unary|ctrl)", ("ctrl",), lambda x: x),
+	("(unary|decl|ctrl)", ("unary",), lambda x: x),
+	("(unary|decl|ctrl)", ("decl",), NodeCompound),
+	("(unary|decl|ctrl)", ("ctrl",), lambda x: x),
 	
-	# ..mul: ctrl ((*|/|%) (unary|ctrl))*
-	("..mul", ("..mul", "(*|/|%)", "(unary|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	# ..mul: (decl|ctrl) ((*|/|%) (unary|decl|ctrl))*
+	("..mul", ("..mul", "(*|/|%)", "(unary|decl|ctrl)"), lambda left, OP, right: NodeBinaryOp(OP, left, right)),
+	("..mul", ("decl",), NodeCompound),
 	("..mul", ("ctrl",), lambda x: x),
 	
 	# unary: (+|-|!|&|*)* (call|inlay|prefixed)
-	#      | (+|-|!|&|*)+ ctrl
+	#      | (+|-|!|&|*)+ (decl|ctrl)
 	("unary", ("(+|-|!|&|*)", "unary"), lambda op, val: NodeUnaryOp(op, val)),
+	("unary", ("(+|-|!|&|*)", "decl"), lambda op, val: NodeUnaryOp(op, NodeCompound(val))),
 	("unary", ("(+|-|!|&|*)", "ctrl"), lambda op, val: NodeUnaryOp(op, val)),
 	("unary", ("call",), lambda x: x),
 	("unary", ("inlay",), lambda x: x),
@@ -284,28 +287,29 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
 	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
-	# call: postfixed+ (inlay|ctrl|prefixed)
+	# call: postfixed+ (inlay|decl|ctrl|prefixed)
 	("call", ("postfixed+", "inlay"), lambda func, arg: NodeCall(func, arg)),
+	("call", ("postfixed+", "decl"), lambda func, arg: NodeCall(func, NodeCompound(arg))),
 	("call", ("postfixed+", "ctrl"), lambda func, arg: NodeCall(func, arg)),
 	("call", ("postfixed+", "prefixed"), lambda func, arg: NodeCall(func, arg)),
 	
-	# inlay: prefix* INLAY ctrl
+	# inlay: prefix* INLAY (decl|ctrl|bound)
 	#      | bound
+	("inlay", ("prefix*", "INLAY", "decl"), lambda attr, INLAY, x: NodeCompound(x.AppendPrefix(*attr))),
 	("inlay", ("prefix*", "INLAY", "ctrl"), lambda attr, INLAY, x: x.AppendPrefix(*attr)),
-	# ("inlay", ("prefix*", "INLAY", "bound"), lambda attr, INLAY, x: x.AppendPrefix(*attr)),  # Is this necessary?
+	("inlay", ("prefix*", "INLAY", "bound"), lambda attr, INLAY, x: x.AppendPrefix(*attr)),  # This works, but may not be necessary.
 	("inlay", ("bound",), lambda x: x),
 	
 	# ctrl: prefix* IF bound (prefix* THEN)? bound else?
 	#     | prefix* WHILE bound bound else?
 	#     | prefix* FOR bound bound bound else?
-	#     | decl
 	("ctrl", ("prefix*", "IF", "bound", "prefix*", "THEN", "bound", "else"), lambda attr, IF, cond, attr2, THEN, expr, otherwise: NodeIfElse(cond, ensure_compound(expr).AppendPrefix(*attr2), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "IF", "bound", "bound", "else"), lambda attr, IF, cond, expr, otherwise: NodeIfElse(cond, ensure_compound(expr), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "WHILE", "bound", "bound", "else"), lambda attr, WHILE, cond, loop, otherwise: NodeWhileElse(cond, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
 	("ctrl", ("prefix*", "FOR", "bound", "bound", "bound", "else"), lambda attr, FOR, itr, var, loop, otherwise: NodeForElse(itr, var, ensure_compound(loop), otherwise).AppendPrefix(*attr)),
-	("ctrl", ("decl",), lambda x: NodeCompound(x)),
 	
-	# else: prefix* ELSE (ctrl|bound)
+	# else: prefix* ELSE (decl|ctrl|bound)
+	("else", ("prefix*", "ELSE", "decl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),  # This works, but can make syntax confusing.
 	("else", ("prefix*", "ELSE", "ctrl"), lambda attr, ELSE, x: x.AppendPrefix(*attr)),
 	("else", ("prefix*", "ELSE", "bound"), lambda attr, ELSE, x: ensure_compound(x).AppendPrefix(*attr)),
 	("else", (), lambda: NodeCompound()),
@@ -337,14 +341,14 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("postfix*", (), lambda: lambda x: x),
 	("postfix", (".", "prim"), lambda DOT, label: lambda node: NodeAccess(node, label)),
 	("postfix", ("[", "stmt", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
-	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
+	("postfix", ("[", "decl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, NodeCompound(idx))),
+	("postfix", ("[", "ctrl", "]"), lambda LBR, idx, RBR: lambda node: NodeIndex(node, idx)),
 	("postfix", ("#",), lambda HASH: lambda node: node),
 	
 	# prim: (INT|LABEL|STR)
 	#     | ( )
 	#     | ( | )
-	#     | ( expr )
-	#     | ( decl )
+	#     | ( (stmt|decl|ctrl) )
 	#     | .( field_lst )
 	#     | .[ element_lst ]
 	("prim", ("INT",), NodeInt),
@@ -354,7 +358,8 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Node]]] = [
 	("prim", ("(", ")"), lambda LPR, RPR: NodeTuple()),
 	("prim", ("(", "|", ")"), lambda LPR, PIPE, RPR: NodeUnion()),
 	("prim", ("(", "stmt", ")"), lambda LPR, x, RPR: x),
-	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: x),
+	("prim", ("(", "decl", ")"), lambda LPR, x, RPR: NodeCompound(x)),
+	("prim", ("(", "ctrl", ")"), lambda LPR, x, RPR: x),
 	("prim", (".(", "field_lst", ")"), lambda LPR, x, RPR: NodeStruct(*x)),
 	("prim", (".[", "element_lst", "]"), lambda LPR, x, RPR: NodeTuple(*x)),
 	
