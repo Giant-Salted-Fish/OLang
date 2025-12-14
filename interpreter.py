@@ -6,7 +6,7 @@ import lang_ast
 
 class Environment:
 	@override
-	def __init__(self, parent: "Environment | None", local_stack: list[str], local_table: dict[str, Any]) -> None:
+	def __init__(self, parent: Environment | None, local_stack: list[str], local_table: dict[str, Any]) -> None:
 		self._parent = parent
 		self._local_stack = local_stack
 		self._local_table = local_table
@@ -16,7 +16,7 @@ class Environment:
 		return cls(None, [], {})
 	
 	@classmethod
-	def Nest(cls, parent: "Environment") -> Self:
+	def Nest(cls, parent: Environment) -> Self:
 		return cls(parent, [], {})
 	
 	def Resolve(self, symbol: str) -> Any:
@@ -66,6 +66,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitStr(self, node: lang_ast.NodeStr) -> tuple[Any, ControlState]:
+		# TODO: Handle escape characters.
 		return node.token.GetText(), ControlState.PASS
 	
 	@override

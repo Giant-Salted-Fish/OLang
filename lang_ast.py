@@ -8,14 +8,14 @@ class Node(ABC):
 	suffix: tuple["Node", ...] = ()
 	
 	@abstractmethod
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		pass
 	
-	def AppendPrefix(self, *attr: "Node") -> Self:
+	def AppendPrefix(self, *attr: Node) -> Self:
 		self.prefix = self.prefix + attr
 		return self
 	
-	def AppendSuffix(self, *attr: "Node") -> Self:
+	def AppendSuffix(self, *attr: Node) -> Self:
 		self.suffix = self.suffix + attr
 		return self
 	
@@ -35,7 +35,7 @@ class NodeInt(Node):
 		return self._GenStr(self.token.GetText())
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitInt(self)
 
 
@@ -49,7 +49,7 @@ class NodeLabel(Node):
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitLabel(self)
 
 
@@ -63,7 +63,7 @@ class NodeStr(Node):
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitStr(self)
 
 
@@ -77,7 +77,7 @@ class NodeBool(Node):
 		return self._GenStr(repr(self.token.GetText()))
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitBool(self)
 
 
@@ -91,7 +91,7 @@ class NodeCompound(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitCompound(self)
 
 
@@ -105,7 +105,7 @@ class NodeDecl(Node):
 		return self._GenStr(f"{self.var}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitDecl(self)
 
 
@@ -120,13 +120,13 @@ class NodeAssign(Node):
 		return self._GenStr(f"{self.var}, {self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitAssign(self)
 
 
 class NodeFunc(Node):
 	@override
-	def __init__(self, param: Node, body: "NodeCompound | NodeStruct") -> None:
+	def __init__(self, param: Node, body: NodeCompound | NodeStruct) -> None:
 		self.param = param
 		self.body = body
 	
@@ -135,13 +135,13 @@ class NodeFunc(Node):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitFunc(self)
 
 
 class NodeTemplate(Node):
 	@override
-	def __init__(self, param: Node, body: "NodeCompound | NodeStruct") -> None:
+	def __init__(self, param: Node, body: NodeCompound | NodeStruct) -> None:
 		self.param = param
 		self.body = body
 	
@@ -150,7 +150,7 @@ class NodeTemplate(Node):
 		return self._GenStr(f"{self.param}, {self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitTemplate(self)
 
 
@@ -165,7 +165,7 @@ class NodeCall(Node):
 		return self._GenStr(f"{self.func}, {self.arg}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitCall(self)
 
 
@@ -179,7 +179,7 @@ class NodeUnion(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitUnion(self)
 
 
@@ -193,7 +193,7 @@ class NodeTuple(Node):
 		return self._GenStr(repr(self.nodes)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitTuple(self)
 
 
@@ -207,7 +207,7 @@ class NodeStruct(Node):
 		return self._GenStr(repr(self.fields)[1:-2])
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitStruct(self)
 
 
@@ -223,7 +223,7 @@ class NodeLogicalOp(Node):
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitLogicalOp(self)
 
 
@@ -239,7 +239,7 @@ class NodeBinaryOp(Node):
 		return self._GenStr(f"{self.op.GetText()}, {self.lhs}, {self.rhs}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitBinaryOp(self)
 
 
@@ -254,7 +254,7 @@ class NodeUnaryOp(Node):
 		return self._GenStr(f"{self.op}, {self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitUnaryOp(self)
 
 
@@ -269,7 +269,7 @@ class NodeAccess(Node):
 		return self._GenStr(f"{self.obj}, {self.field}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitAccess(self)
 
 
@@ -284,7 +284,7 @@ class NodeIndex(Node):
 		return self._GenStr(f"{self.obj}, {self.index}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitIndex(self)
 
 
@@ -298,7 +298,7 @@ class NodeReturn(Node):
 		return self._GenStr(f"{self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitReturn(self)
 
 
@@ -312,7 +312,7 @@ class NodeBreak(Node):
 		return self._GenStr(f"{self.expr}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitBreak(self)
 
 
@@ -322,7 +322,7 @@ class NodeContinue(Node):
 		return self._GenStr("")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitContinue(self)
 
 
@@ -338,7 +338,7 @@ class NodeIfElse(Node):
 		return self._GenStr(f"{self.cond}, {self.true_branch}, {self.false_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitIfElse(self)
 
 
@@ -354,7 +354,7 @@ class NodeWhileElse(Node):
 		return self._GenStr(f"{self.cond}, {self.loop_body}, {self.else_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitWhileElse(self)
 
 
@@ -371,7 +371,7 @@ class NodeForElse(Node):
 		return self._GenStr(f"{self.iterable}, {self.var}, {self.loop_body}, {self.else_branch}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitForElse(self)
 
 
@@ -385,7 +385,7 @@ class NodeNamedTuple(Node):
 		return self._GenStr(f"{self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitNamedTuple(self)
 
 
@@ -399,7 +399,7 @@ class NodeNamedStruct(Node):
 		return self._GenStr(f"{self.body}")
 	
 	@override
-	def Accept[T](self, visitor: "Visitor[T]") -> T:
+	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitNamedStruct(self)
 
 

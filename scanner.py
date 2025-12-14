@@ -68,7 +68,7 @@ class Scanner[T]:
 		yield Token[T](None, lines, line_num - 1, col_idx, 0)
 	
 	@classmethod
-	def Build(cls, types: Iterable[tuple[T, str]]) -> "Scanner[T]":
+	def Build(cls, types: Iterable[tuple[T, str]]) -> Scanner[T]:
 		def build_matcher(pattern: str) -> Callable[..., int]:
 			r = re.compile(pattern)
 			def match(s: str, offset: int) -> int:

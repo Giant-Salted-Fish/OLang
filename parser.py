@@ -106,7 +106,7 @@ class Syntax[N, T, R]:
 			for (item, dot_pos), lookahead in new_state.items()
 		)
 	
-	def BuildLR1Parser(self) -> "Parser[N, T, R]":
+	def BuildLR1Parser(self) -> Parser[N, T, R]:
 		state_table: dict[frozenset[Item[N, T, R]], int] = {}
 		shift_table: dict[tuple[int, T | None], int] = {}  # Can be typed as dist[tuple[int, T], int]
 		reduce_table: dict[tuple[int, T | None], Production[N, T, R]] = {}
@@ -333,8 +333,8 @@ class Parser[N, T, R]:
 		return action_stack[-1]  # type: ignore
 	
 	def Serialize(self, line_writer: Callable[[str], None]) -> None:
-		pass
+		raise NotImplementedError
 	
 	@classmethod
 	def Deserialize(cls, line_reader: Iterator[str]) -> None:
-		pass
+		raise NotImplementedError
