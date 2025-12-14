@@ -126,7 +126,7 @@ class NodeAssign(Node):
 
 class NodeFunc(Node):
 	@override
-	def __init__(self, param: Node, body: NodeCompound) -> None:
+	def __init__(self, param: Node, body: "NodeCompound | NodeStruct") -> None:
 		self.param = param
 		self.body = body
 	
@@ -141,7 +141,7 @@ class NodeFunc(Node):
 
 class NodeTemplate(Node):
 	@override
-	def __init__(self, param: Node, body: NodeCompound) -> None:
+	def __init__(self, param: Node, body: "NodeCompound | NodeStruct") -> None:
 		self.param = param
 		self.body = body
 	
@@ -328,7 +328,7 @@ class NodeContinue(Node):
 
 class NodeIfElse(Node):
 	@override
-	def __init__(self, cond: Node, true_branch: NodeCompound, false_branch: NodeCompound) -> None:
+	def __init__(self, cond: Node, true_branch: NodeCompound | NodeStruct, false_branch: NodeCompound | NodeStruct) -> None:
 		self.cond = cond
 		self.true_branch = true_branch
 		self.false_branch = false_branch
@@ -344,7 +344,7 @@ class NodeIfElse(Node):
 
 class NodeWhileElse(Node):
 	@override
-	def __init__(self, cond: Node, loop_body: NodeCompound, else_branch: NodeCompound) -> None:
+	def __init__(self, cond: Node, loop_body: NodeCompound | NodeStruct, else_branch: NodeCompound | NodeStruct) -> None:
 		self.cond = cond
 		self.loop_body = loop_body
 		self.else_branch = else_branch
@@ -360,7 +360,7 @@ class NodeWhileElse(Node):
 
 class NodeForElse(Node):
 	@override
-	def __init__(self, iterable: Node, var: Node, loop_body: NodeCompound, else_branch: NodeCompound) -> None:
+	def __init__(self, iterable: Node, var: Node, loop_body: NodeCompound | NodeStruct, else_branch: NodeCompound | NodeStruct) -> None:
 		self.iterable = iterable
 		self.var = var
 		self.loop_body = loop_body

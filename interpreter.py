@@ -22,10 +22,10 @@ class Environment:
 	def Resolve(self, symbol: str) -> Any:
 		if symbol in self._local_table:
 			return self._local_table[symbol]
-		
-		if self._parent is None:
+		elif self._parent is not None:
+			return self._parent.Resolve(symbol)
+		else:
 			raise RuntimeError(f"Cannot resolve variable <{symbol}>")
-		return self._parent.Resolve(symbol)
 	
 	def Push(self, symbol: str, value: Any) -> None:
 		assert symbol not in self._local_table
@@ -81,12 +81,10 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	@override
 	def VisitCompound(self, node: lang_ast.NodeCompound) -> tuple[Any, ControlState]:
 		scope = Environment.Nest(self.env)
-		return Evaluate(scope).EvalCompound(node)
-	
-	def EvalCompound(self, cmpd: lang_ast.NodeCompound) -> tuple[Any, ControlState]:
+		evaluator = Evaluate(scope)
 		val, ctrl = (), ControlState.PASS
-		for node in cmpd.nodes:
-			val, ctrl = node.Accept(self)
+		for stmt in node.nodes:
+			val, ctrl = stmt.Accept(evaluator)
 			if ctrl is not ControlState.PASS:
 				break
 		return val, ctrl
@@ -111,7 +109,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			scope = Environment.Nest(self.env)
 			node.param.Accept(Declare(scope))
 			node.param.Accept(Unwind(arg, scope))
-			val, ctrl = Evaluate(scope).EvalCompound(node.body)
+			val, ctrl = node.body.Accept(Evaluate(scope))
 			assert ctrl in (ControlState.PASS, ControlState.RETURN)
 			return val, ControlState.PASS
 		return func, ControlState.PASS
@@ -122,7 +120,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 			scope = Environment.Nest(self.env)
 			node.param.Accept(Declare(scope))
 			node.param.Accept(Unwind(arg, scope))
-			val, ctrl = Evaluate(scope).EvalCompound(node.body)
+			val, ctrl = node.body.Accept(Evaluate(scope))
 			assert ctrl in (ControlState.PASS, ControlState.RETURN)
 			return val, ControlState.PASS
 		return tmplt, ControlState.PASS
@@ -157,9 +155,9 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	@override
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> tuple[Any, ControlState]:
 		scope = Environment.Nest(self.env)
-		ev = Evaluate(scope)
-		for n in node.fields:
-			val, ctrl = n.Accept(ev)
+		evaluator = Evaluate(scope)
+		for fld in node.fields:
+			val, ctrl = fld.Accept(evaluator)
 			if ctrl is not ControlState.PASS:
 				return val, ctrl
 		return scope.GetLocals(), ControlState.PASS
