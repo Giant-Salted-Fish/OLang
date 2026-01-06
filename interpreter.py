@@ -319,15 +319,15 @@ class Declare(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitInt(self, node: lang_ast.NodeInt) -> None:
-		pass
+		return None
 	
 	@override
 	def VisitStr(self, node: lang_ast.NodeStr) -> None:
-		pass
+		return None
 	
 	@override
 	def VisitBool(self, node: lang_ast.NodeBool) -> None:
-		pass
+		return None
 	
 	@override
 	def VisitLabel(self, node: lang_ast.NodeLabel) -> None:
@@ -344,8 +344,7 @@ class Declare(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitAssign(self, node: lang_ast.NodeAssign) -> None:
-		"""For struct unwind."""
-		node.expr.Accept(self)
+		raise RuntimeError
 	
 	@override
 	def VisitFunc(self, node: lang_ast.NodeFunc) -> None:
@@ -372,7 +371,7 @@ class Declare(lang_ast.Visitor[None]):
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> None:
 		for field in node.fields:
 			assert isinstance(field, lang_ast.NodeAssign)
-			field.Accept(self)
+			field.expr.Accept(self)
 	
 	@override
 	def VisitLogicalOp(self, node: lang_ast.NodeLogicalOp) -> None:
@@ -461,13 +460,7 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitAssign(self, node: lang_ast.NodeAssign) -> None:
-		"""For struct unwind."""
-		assert isinstance(node.var, lang_ast.NodeDecl)
-		scope = Environment(None, [], self.val)
-		ev = Evaluate(scope)
-		data, ctrl = node.var.var.Accept(ev)
-		assert ctrl is ControlState.PASS
-		node.expr.Accept(Unwind(data, self.env))
+		raise RuntimeError
 	
 	@override
 	def VisitFunc(self, node: lang_ast.NodeFunc) -> None:
@@ -497,7 +490,12 @@ class Unwind(lang_ast.Visitor[None]):
 		assert isinstance(self.val, dict), f"Expect dict (struct), got {type(self.val)}"
 		for field in node.fields:
 			assert isinstance(field, lang_ast.NodeAssign)
-			field.Accept(self)
+			assert isinstance(field.var, lang_ast.NodeDecl)
+			scope = Environment(None, [], self.val)
+			eva = Evaluate(scope)
+			data, ctrl = field.var.var.Accept(eva)
+			assert ctrl is ControlState.PASS
+			field.expr.Accept(Unwind(data, self.env))
 	
 	@override
 	def VisitLogicalOp(self, node: lang_ast.NodeLogicalOp) -> None:
