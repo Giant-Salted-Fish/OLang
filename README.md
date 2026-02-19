@@ -4,7 +4,7 @@ OLang 是我正在开发的一款通用编程语言，主要用来实验我对�
 
 ### 语法介绍
 
-OLang 的语法设计主要借鉴了 [Zig](https://ziglang.org/)，[Rust](https://www.rust-lang.org/)，[Haskell](https://www.haskell.org/) 这几门语言，其目标是在维持简洁性和一致性的同时尽可能地贴合现代程序员的编程直觉，增强语言的表达能力和可扩展性。
+OLang 的语法设计主要借鉴了 [Zig](https://ziglang.org/)、[Rust](https://www.rust-lang.org/)、[Haskell](https://www.haskell.org/) 等语言，其目标是在维持简洁性和一致性的同时尽可能地贴合现代程序员的编程直觉，增强语言的表达能力和可扩展性。
 
 #### 变量
 
@@ -264,7 +264,7 @@ let p = Pair .(
 
 #### 控制流
 
-OLang 支持其它语言中常见的 `if else`，`while` 和 `for` 这三种流程控制语句，在 OLang 中它们都属于表达式，可以对它们进行求值：
+OLang 支持其它语言中常见的 `if`，`while` 和 `for` 这三种流程控制语句，在 OLang 中它们都属于表达式，可以对它们进行求值：
 
 ```
 let word: str = if (val > 3) "Hello" else "World";
@@ -285,11 +285,16 @@ let result = (
 );
 ```
 
-对于没有 `else` 分支的 `if`/`while`/`for` 语句，OLang 会为它们隐式地补上一个返回空元组的 `else` 分支，因此下面这两种写法是等价的：
+直接在顶层使用时结尾的 `else` 分支与最后的分号都可以省略：
 
 ```
-let result = if cond { "Hello" };  // 省略末尾的 else 分支
-let result = if cond { "Hello" } else {};  // 注意空代码块会返回空元组
+// 顶层使用时可省略 else 分支和分号
+if cond {
+    "Hello"
+}
+
+// 其它情况下不可省略
+let result = if cond { "Hello" } else { "World" };
 ```
 
 #### 类型注解

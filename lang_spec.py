@@ -18,11 +18,10 @@ TOKEN_TYPES = [
 	("CONTINUE", r"continue"),
 	("STRUCT", r"struct"),
 	("RETURN", r"return"),
-	("INLAY", r"inlay"),  # Comment out this to disable inlay keyword.
+	# ("INLAY", r"inlay"),  # Comment out this to disable inlay keyword.
 	("BREAK", r"break"),
 	("TUPLE", r"tuple"),
 	("WHILE", r"while"),
-	("THEN", r"then"),
 	("ELSE", r"else"),
 	("LET", r"let"),
 	("FOR", r"for"),
@@ -375,8 +374,8 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("field_lst", (), lambda: ()),
 	("field_set", ("prefix*", "LET", "(suffixed|..suffixed)", "=", "(suffixed|..suffixed)"), lambda attr, LET, prop, EQ, val: NodeAssign(NodeDecl(prop).AppendPrefix(*attr), val)),
 	("field_set", ("prefix*", "LET", "(suffixed|..suffixed)"), lambda attr, LET, prop: NodeDecl(prop).AppendPrefix(*attr)),
-	("field_set", ("(suffixed|..suffixed)", "=", "(suffixed|..suffixed)"), lambda attr, prop, EQ, val: NodeAssign(NodeDecl(prop).AppendPrefix(*attr), val)),
-	("field_set", ("(suffixed|..suffixed)",), lambda attr, prop: NodeDecl(prop).AppendPrefix(*attr)),
+	("field_set", ("(suffixed|..suffixed)", "=", "(suffixed|..suffixed)"), lambda prop, EQ, val: NodeAssign(NodeDecl(prop), val)),
+	("field_set", ("(suffixed|..suffixed)",), lambda prop: NodeDecl(prop)),
 	("(;|,)", (";",), lambda SEMI: SEMI),
 	("(;|,)", (",",), lambda COMMA: COMMA),
 ]
