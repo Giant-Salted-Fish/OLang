@@ -241,8 +241,8 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		if ctrl is not ControlState.PASS:
 			return obj, ctrl
 		
-		assert isinstance(node.field, lang_ast.NodeLabel)
-		return getattr(obj, node.field.token.GetText())
+		struct_scope = Environment(None, [], obj)
+		return node.field.Accept(Evaluate(struct_scope))
 	
 	@override
 	def VisitIndex(self, node: lang_ast.NodeIndex) -> tuple[Any, ControlState]:
@@ -488,11 +488,11 @@ class Unwind(lang_ast.Visitor[None]):
 	@override
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> None:
 		assert isinstance(self.val, dict), f"Expect dict (struct), got {type(self.val)}"
+		scope = Environment(None, [], self.val)
+		eva = Evaluate(scope)
 		for field in node.fields:
 			assert isinstance(field, lang_ast.NodeAssign)
 			assert isinstance(field.var, lang_ast.NodeDecl)
-			scope = Environment(None, [], self.val)
-			eva = Evaluate(scope)
 			data, ctrl = field.var.var.Accept(eva)
 			assert ctrl is ControlState.PASS
 			field.expr.Accept(Unwind(data, self.env))
@@ -511,7 +511,11 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitAccess(self, node: lang_ast.NodeAccess) -> None:
-		raise RuntimeError
+		obj, ctrl = node.obj.Accept(Evaluate(self.env))
+		assert ctrl is ControlState.PASS
+		
+		struct_scope = Environment(None, [], obj)
+		node.field.Accept(Unwind(self.val, struct_scope))
 	
 	@override
 	def VisitIndex(self, node: lang_ast.NodeIndex) -> None:
