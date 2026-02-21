@@ -480,7 +480,6 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitTuple(self, node: lang_ast.NodeTuple) -> None:
-		assert isinstance(self.val, list), f"Expected array, got {type(self.val)}"
 		assert len(self.val) == len(node.nodes)
 		for i, n in enumerate(node.nodes):
 			n.Accept(Unwind(self.val[i], self.env))
