@@ -144,14 +144,14 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitTuple(self, node: lang_ast.NodeTuple) -> tuple[Any, ControlState]:
-		nodes = []
+		arr = []
 		for n in node.nodes:
 			val, ctrl = n.Accept(self)
 			if ctrl is not ControlState.PASS:
 				return val, ctrl
-			nodes.append(val)
+			arr.append(val)
 		
-		return tuple(nodes), ControlState.PASS
+		return arr, ControlState.PASS
 	
 	@override
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> tuple[Any, ControlState]:
@@ -480,7 +480,7 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitTuple(self, node: lang_ast.NodeTuple) -> None:
-		assert isinstance(self.val, tuple), f"Expected tuple, got {type(self.val)}"
+		assert isinstance(self.val, list), f"Expected array, got {type(self.val)}"
 		assert len(self.val) == len(node.nodes)
 		for i, n in enumerate(node.nodes):
 			n.Accept(Unwind(self.val[i], self.env))
@@ -519,7 +519,13 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitIndex(self, node: lang_ast.NodeIndex) -> None:
-		raise RuntimeError
+		evaluate = Evaluate(self.env)
+		obj, ctrl = node.obj.Accept(evaluate)
+		assert ctrl is ControlState.PASS
+		
+		idx, ctrl = node.index.Accept(evaluate)
+		assert ctrl is ControlState.PASS
+		obj[idx] = self.val
 	
 	@override
 	def VisitReturn(self, node: lang_ast.NodeReturn) -> None:
