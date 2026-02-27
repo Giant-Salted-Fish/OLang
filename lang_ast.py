@@ -88,7 +88,7 @@ class NodeCompound(Node):
 	
 	@override
 	def __repr__(self) -> str:
-		return self._GenStr(repr(self.nodes)[1:-2])
+		return self._GenStr(repr(self.nodes)[1:-1])
 	
 	@override
 	def Accept[T](self, visitor: Visitor[T]) -> T:
@@ -176,7 +176,7 @@ class NodeUnion(Node):
 	
 	@override
 	def __repr__(self) -> str:
-		return self._GenStr(repr(self.nodes)[1:-2])
+		return self._GenStr(repr(self.nodes)[1:-1])
 	
 	@override
 	def Accept[T](self, visitor: Visitor[T]) -> T:
@@ -190,7 +190,7 @@ class NodeTuple(Node):
 	
 	@override
 	def __repr__(self) -> str:
-		return self._GenStr(repr(self.nodes)[1:-2])
+		return self._GenStr(repr(self.nodes)[1:-1])
 	
 	@override
 	def Accept[T](self, visitor: Visitor[T]) -> T:
@@ -204,7 +204,7 @@ class NodeStruct(Node):
 	
 	@override
 	def __repr__(self) -> str:
-		return self._GenStr(repr(self.fields)[1:-2])
+		return self._GenStr(repr(self.fields)[1:-1])
 	
 	@override
 	def Accept[T](self, visitor: Visitor[T]) -> T:
