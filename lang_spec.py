@@ -291,10 +291,12 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
 	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
-	# call: postfixed+ (decl|..bound|prefixed)
-	("call", ("postfixed+", "decl"), lambda func, arg: NodeCall(func, arg)),
-	("call", ("postfixed+", "..bound"), lambda func, arg: NodeCall(func, arg)),
-	("call", ("postfixed+", "prefixed"), lambda func, arg: NodeCall(func, arg)),
+	# call: (prefix* #[ (stmt|expr) ])? postfixed+ (decl|..bound|prefixed)
+	("call", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed+", "arg"), lambda attr_lst, HASH, attr, RBR, func, arg: NodeCall(func, arg).AppendPrefix(*attr_lst, attr)),
+	("call", ("postfixed+", "arg"), lambda func, arg: NodeCall(func, arg)),
+	("arg", ("decl",), lambda x: x),
+	("arg", ("..bound",), lambda x: x),
+	("arg", ("prefixed",), lambda x: x),
 	
 	# ..bound: ctrl
 	#        | bound
@@ -318,7 +320,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	#      | prefix* { stmt_lst }
 	#      | prefix* .{ stmt_lst }
 	#      | postfixed
-	("bound", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed",), lambda attr_lst, HASH, attr, RBR, x: (x[1](x[0])).AppendPrefix(*attr_lst, attr)),
+	# ("bound", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed",), lambda attr_lst, HASH, attr, RBR, x: (x[1](x[0])).AppendPrefix(*attr_lst, attr)),
 	("bound", ("prefix*", "TMPLT", "..bound", "..bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, EnsureCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "..bound", "..bound"), lambda attr, FN, param, body: NodeFunc(param, EnsureCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "..bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),

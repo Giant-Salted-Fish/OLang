@@ -100,7 +100,7 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 	@override
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> list[str]:
 		elements = [field.Accept(self) for field in node.fields]
-		if all(len(lines) == 1 for lines in elements):
+		if all(len(lines) == 1 for lines in elements) and sum(map(lambda lines: len(lines[0]), elements)) <= 100:
 			lines = ["; ".join(lines[0] for lines in elements)]
 		else:
 			lines = [line for lines in elements for line in self._SuffixText(";", lines)]
