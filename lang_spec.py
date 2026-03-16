@@ -282,6 +282,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("unary", ("(+|-|!|&|*)", "unary"), lambda OP, val: NodeUnaryOp(OP, val)),
 	("unary", ("(+|-|!|&|*)", "decl"), lambda OP, val: NodeUnaryOp(OP, val)),
 	("unary", ("(+|-|!|&|*)", "ctrl"), lambda OP, val: NodeUnaryOp(OP, val)),
+	("unary", ("prefixed_call",), lambda x: x),
 	("unary", ("call",), lambda x: x),
 	("unary", ("bound",), lambda x: x),
 	("unary", ("prefixed",), lambda x: x),
@@ -291,8 +292,12 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
 	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
 	
-	# call: (prefix* #[ (stmt|expr) ])? postfixed+ (decl|..bound|prefixed)
-	("call", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed+", "arg"), lambda attr_lst, HASH, attr, RBR, func, arg: NodeCall(func, arg).AppendPrefix(*attr_lst, attr)),
+	# prefixed_call: (prefix* #[ (stmt|expr) ] postfix+)+ arg
+	("prefixed_call", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed+", "prefixed_call.."), lambda attr_lst, HASH, attr, BRB, func, arg: NodeCall(func, arg).AppendPrefix(*attr_lst, attr)),
+	("prefixed_call..", ("prefixed_call",), lambda x: x),
+	("prefixed_call..", ("arg",), lambda x: x),
+	
+	# call: postfixed+ (decl|..bound|prefixed)
 	("call", ("postfixed+", "arg"), lambda func, arg: NodeCall(func, arg)),
 	("arg", ("decl",), lambda x: x),
 	("arg", ("..bound",), lambda x: x),
@@ -320,7 +325,7 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	#      | prefix* { stmt_lst }
 	#      | prefix* .{ stmt_lst }
 	#      | postfixed
-	# ("bound", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed",), lambda attr_lst, HASH, attr, RBR, x: (x[1](x[0])).AppendPrefix(*attr_lst, attr)),
+	("bound", ("prefix*", "#[", "(stmt|expr)", "]", "postfixed",), lambda attr_lst, HASH, attr, RBR, x: (x[1](x[0])).AppendPrefix(*attr_lst, attr)),
 	("bound", ("prefix*", "TMPLT", "..bound", "..bound"), lambda attr, TMPLT, param, body: NodeTemplate(param, EnsureCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "FN", "..bound", "..bound"), lambda attr, FN, param, body: NodeFunc(param, EnsureCompound(body)).AppendPrefix(*attr)),
 	("bound", ("prefix*", "STRUCT", "..bound"), lambda attr, STRCT, body: NodeNamedStruct(body).AppendPrefix(*attr)),
@@ -363,15 +368,15 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("(stmt|expr)", ("stmt",), lambda x: x),
 	("(stmt|expr)", ("expr",), lambda x: x),
 	
-	# element_lst: element , element_lst
+	# element_lst: element_lst , element
 	#            | element?
-	("element_lst", ("(suffixed|..suffixed)", ",", "element_lst"), lambda x, COMMA, xs: (x, *xs)),
+	("element_lst", ("element_lst", ",", "(suffixed|..suffixed)"), lambda xs, COMMA, x: (*xs, x)),
 	("element_lst", ("(suffixed|..suffixed)",), lambda x: (x,)),
 	("element_lst", (), lambda: ()),
 	
-	# field_lst: field_set (;|,) field_lst
+	# field_lst: field_lst (;|,) field_set
 	#          | field_set?
-	("field_lst", ("field_set", "(;|,)", "field_lst"), lambda x, SEMI, xs: (x, *xs)),
+	("field_lst", ("field_lst", "(;|,)", "field_set"), lambda xs, SEMI, x: (*xs, x)),
 	("field_lst", ("field_set",), lambda x: (x,)),
 	("field_lst", (), lambda: ()),
 	("field_set", ("prefix*", "LET", "(suffixed|..suffixed)", "=", "(suffixed|..suffixed)"), lambda attr, LET, prop, EQ, val: NodeAssign(NodeDecl(prop).AppendPrefix(*attr), val)),
