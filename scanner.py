@@ -1,6 +1,6 @@
 import re
-from collections.abc import Callable, Generator, Iterable, Sequence
-from typing import Any, override
+from collections.abc import Callable, Iterator, Iterable, Sequence
+from typing import override
 
 
 class Token[T]:
@@ -39,7 +39,7 @@ class Scanner[T]:
 		self._match_lst = match_lst
 		self._match_space = match_space
 	
-	def Tokenize(self, src: str) -> Generator[Token[T], Any, None]:
+	def Tokenize(self, src: str) -> Iterator[Token[T]]:
 		line_num = 0
 		col_idx = 0
 		lines = src.splitlines()

@@ -259,8 +259,6 @@ class Syntax[N, T, R]:
 							break
 			if size == sum(len(s) for s in first_sets.values()):
 				break
-		epsilons = epsilons
-		first_sets = first_sets
 		
 		return cls(
 			production_rules[0].lhs,
