@@ -15,7 +15,7 @@ def ignore(*args):
 	return None
 
 source_code = '''
-@a @b @c if a b
+@a @b @c if d e @f g
 '''
 SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	('S', ('all',), lambda x: x),
@@ -160,50 +160,67 @@ SYNTAX_RULES = [
 	('prim', ('INT',), NodeInt),
 	('prim', ('IDENT',), NodeInt),
 ]
-SYNTAX_RULES2 = [
-	('S', ('last_stmt',), ignore),
+SYNTAX_RULES = [
+	('S', ('stmt_lst',), ignore),
 	
-	# ('stmt_lst', ('norm_stmt', 'stmt_lst'), ignore),
-	# ('stmt_lst', ('last_stmt',), ignore),
+	('stmt_lst', ('norm_stmt', 'stmt_lst'), ignore),
+	('stmt_lst', ('last_stmt',), ignore),
 	
-	# ('norm_stmt', ('prefix*', 'norm_ctrl'), ignore),
-	# ('norm_stmt', ('prefixed', ';'), ignore),
-	# ('norm_stmt', (';',), ignore),
+	('norm_stmt', ('prefix*', 'if'), ignore),
+	('norm_stmt', ('prefix*', 'norm_ifx'), ignore),
+	('norm_stmt', ('prefixed', ';'), ignore),
+	('norm_stmt', (';',), ignore),
 	
 	('last_stmt', ('prefix*', 'last_ifx'), ignore),
-	('last_stmt', ('prefix*', 'if'), ignore),
 	('last_stmt', ('prefixed',), ignore),
 	('last_stmt', (), ignore),
 	
-	('last_ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'last_stmt'), ignore),
-	('last_ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', 'last_ifx'), ignore),
-	('last_ifx', ('IF', 'prefix*', 'ifx', '(if|prim)', 'last_stmt'), ignore),
+	
+	('norm_ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'norm_stmt'), ignore),
+	('norm_ifx', ('IF', '(prefix* if|postfixed)', 'prefix*', 'norm_ifx'), ignore),
+	('norm_ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'norm_stmt'), ignore),
+	('norm_ifx', ('IF', 'prefix*', 'ifx', 'norm_ifx'), ignore),
+	('norm_ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'norm_ifx'), ignore),
+	('norm_ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'norm_ifx'), ignore),
+	
+	('last_ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'last_stmt'), ignore),
+	('last_ifx', ('IF', '(prefix* if|postfixed)', 'prefix*', 'last_ifx'), ignore),
+	('last_ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'last_stmt'), ignore),
 	('last_ifx', ('IF', 'prefix*', 'ifx', 'last_ifx'), ignore),
-	('last_ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'last_ifx'), ignore),
-	('last_ifx', ('IF', 'prefix*', 'ifx', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'last_ifx'), ignore),
+	('last_ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'last_ifx'), ignore),
+	('last_ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'last_ifx'), ignore),
 	
 	
-	('if', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', '(if|prim)'), ignore),
-	('if', ('IF', 'prefix*', 'ifx', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', '(if|prim)'), ignore),
+	('if', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', '(prefix* if|postfixed)'), ignore),
+	('if', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', '(prefix* if|postfixed)'), ignore),
 	
-	('if$-else', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|if$-else|prim)'), ignore),
-	('if$-else', ('IF', 'prefix*', 'ifx', '(if|if$-else|prim)'), ignore),
-	('if$-else', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
-	('if$-else', ('IF', 'prefix*', 'ifx', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
+	('if$-else', ('IF', '(prefix* if|postfixed)', '(prefix* (if|if$-else)|postfixed)'), ignore),
+	('if$-else', ('IF', 'prefix*', '(ifx (if|if$-else)|if$-else postfixed)'), ignore),
+	('if$-else', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
+	('if$-else', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
 	
-	('ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'prefix*'), ignore),
-	('ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', 'ifx'), ignore),
-	('ifx', ('IF', 'prefix*', 'ifx', '(if|prim)', 'prefix*'), ignore),
+	('ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*'), ignore),
+	('ifx', ('IF', '(prefix* if|postfixed)', 'prefix*', 'ifx'), ignore),
+	('ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*'), ignore),
 	('ifx', ('IF', 'prefix*', 'ifx', 'ifx'), ignore),
-	('ifx', ('IF', 'prefix*', '(if|prim)', 'prefix*', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
-	('ifx', ('IF', 'prefix*', 'ifx', '(if|prim)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
+	('ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
+	('ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
 	
-	('(if|prim)', ('if',), ignore),
-	('(if|prim)', ('prim',), ignore),
 	
-	('(if|if$-else|prim)', ('if',), ignore),
-	('(if|if$-else|prim)', ('if$-else',), ignore),
-	('(if|if$-else|prim)', ('prim',), ignore),
+	('(prefix* if|postfixed)', ('prefix*', 'if'), ignore),
+	('(prefix* if|postfixed)', ('postfixed',), ignore),
+	
+	('(ifx if|if$-else postfixed)', ('ifx', 'if'), ignore),
+	('(ifx if|if$-else postfixed)', ('if$-else', 'postfixed'), ignore),
+	
+	('(prefix* (if|if$-else)|postfixed)', ('prefix*', 'if'), ignore),
+	('(prefix* (if|if$-else)|postfixed)', ('prefix*', 'if$-else'), ignore),
+	('(prefix* (if|if$-else)|postfixed)', ('postfixed',), ignore),
+	
+	('(ifx (if|if$-else)|if$-else postfixed)', ('ifx', 'if'), ignore),
+	('(ifx (if|if$-else)|if$-else postfixed)', ('ifx', 'if$-else'), ignore),
+	('(ifx (if|if$-else)|if$-else postfixed)', ('if$-else', 'postfixed',), ignore),
+	
 	
 	('prefixed', ('prefix*', '@', 'postfixed+', 'postfixed'), ignore),
 	('prefix*', ('prefix*', '@', 'postfixed+'), ignore),
