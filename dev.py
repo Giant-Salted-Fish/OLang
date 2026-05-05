@@ -239,53 +239,138 @@ SYNTAX_RULES = [
 	('prim', ('INT',), NodeInt),
 	('prim', ('IDENT',), NodeInt),
 ]
-SYNTAX_RULES2 = [
+SYNTAX_RULES = [
 	('S', ('prefix*', 'if'), ignore),
 	('S', ('prefix*', 'if$-else'), ignore),
-	
-	('if', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', '(prefix* if|postfixed)'), ignore),
-	('if', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', '(prefix* if|postfixed)'), ignore),
-	
-	('if$-else', ('IF', '(prefix* if|postfixed)', '(prefix* (if|if$-else)|postfixed)'), ignore),
-	('if$-else', ('IF', 'prefix*', '(ifx (if|if$-else)|if$-else postfixed)'), ignore),
-	('if$-else', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
-	('if$-else', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'if$-else'), ignore),
-	
-	('ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*'), ignore),
-	('ifx', ('IF', '(prefix* if|postfixed)', 'prefix*', 'ifx'), ignore),
-	('ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*'), ignore),
-	('ifx', ('IF', 'prefix*', 'ifx', 'ifx'), ignore),
-	('ifx', ('IF', '(prefix* if|postfixed)', '(prefix* if|postfixed)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
-	('ifx', ('IF', 'prefix*', '(ifx if|if$-else postfixed)', 'prefix*', 'ELSE', 'prefix*', 'ifx'), ignore),
+	('S', ('prefix*', 'if$-case'), ignore),
+	('S', ('prefix*', 'if$-else-case'), ignore),
+	('S', ('prefix*', 'match'), ignore),
+	('S', ('prefix*', 'match$-else'), ignore),
+	('S', ('prefix*', 'prim'), ignore),
 	
 	
-	('(prefix* if|postfixed)', ('prefix*', 'if'), ignore),
-	('(prefix* if|postfixed)', ('postfixed',), ignore),
 	
-	('(ifx if|if$-else postfixed)', ('ifx', 'if'), ignore),
-	('(ifx if|if$-else postfixed)', ('if$-else', 'postfixed'), ignore),
+	('if', ('if_x_x$else', 'ELSE', 'prefix*', '(if|prim)'), ignore),
 	
-	('(prefix* (if|if$-else)|postfixed)', ('prefix*', 'if'), ignore),
-	('(prefix* (if|if$-else)|postfixed)', ('prefix*', 'if$-else'), ignore),
-	('(prefix* (if|if$-else)|postfixed)', ('postfixed',), ignore),
+	('if$-else', ('if_x$x', '(if|if$-else|prim)'), ignore),
+	('if$-else', ('if_x_x$else', 'ELSE', 'prefix*', 'if$-else'), ignore),
+	('if$-else+pref', ('if_x$x', '(if|prim)', 'prefix*'), ignore),
+	('if$-else+pref', ('if_x$x', 'if$-else+pref'), ignore),
+	('if$-else+pref', ('if_x_x$else', 'ELSE', 'prefix*', 'if$-else+pref'), ignore),
 	
-	('(ifx (if|if$-else)|if$-else postfixed)', ('ifx', 'if'), ignore),
-	('(ifx (if|if$-else)|if$-else postfixed)', ('ifx', 'if$-else'), ignore),
-	('(ifx (if|if$-else)|if$-else postfixed)', ('if$-else', 'postfixed',), ignore),
+	('if$-case', ('if_x_x$else', 'ELSE', 'prefix*', '(if$-case|match)'), ignore),
+	('if$-case+pref', ('if_x_x$else', 'ELSE', 'prefix*', '(if$-case|match)$+pref'), ignore),
 	
-	('prefix*', ('prefix*', '@', 'postfixed+'), ignore),
-	('prefix*', ('prefix*', '#[', 'postfixed', ']'), ignore),
+	('if$-else-case', ('if_x$x', '(if$-case|if$-else-case|match|match$-else)'), ignore),
+	('if$-else-case', ('if_x_x$else', 'ELSE', 'prefix*', '(if$-else-case|match$-else)'), ignore),
+	('if$-else-case+pref', ('if_x$x', '(if$-case|if$-else-case|match|match$-else)$+pref'), ignore),
+	('if$-else-case+pref', ('if_x_x$else', 'ELSE', 'prefix*', '(if$-else-case|match$-else)$+pref'), ignore),
+	
+	('match', ('MATCH', 'prefix*', '(if|if$-case|match|prim)'), ignore),
+	('match', ('match_x$case..', 'case..'), ignore),
+	('case..', ('case_x_x$case..', 'case..'), ignore),
+	('case..', ('case_x$x', '(if|if$-case|match|prim)'), ignore),
+	('match$+pref', ('MATCH', 'prefix*', '(if|prim)', 'prefix*'), ignore),
+	('match$+pref', ('MATCH', 'prefix*', '(if$-case|match)$+pref'), ignore),
+	('match$+pref', ('match_x$case..', 'case..$+pref'), ignore),
+	('case..$+pref', ('case_x_x$case..', 'case..$+pref'), ignore),
+	('case..$+pref', ('case_x$x', '(if|prim)', 'prefix*'), ignore),
+	('case..$+pref', ('case_x$x', '(if$-case|match)$+pref'), ignore),
+	
+	('match$-else', ('MATCH', 'prefix*', '(if$-else|if$-else-case|match$-else)'), ignore),
+	('match$-else', ('match_x$case..', 'case..$-else'), ignore),
+	('case..$-else', ('case_x_x$case..', 'case..$-else'), ignore),
+	('case..$-else', ('case_x$x', '(if$-else|if$-else-case|match$-else)'), ignore),
+	('match$-else+pref', ('MATCH', 'prefix*', '(if$-else|if$-else-case|match$-else)$+pref'), ignore),
+	('match$-else+pref', ('match_x$case..', 'case..$-else+pref'), ignore),
+	('case..$-else+pref', ('case_x_x$case..', 'case..$-else+pref'), ignore),
+	('case..$-else+pref', ('case_x$x', '(if$-else|if$-else-case|match$-else)$+pref'), ignore),
+	
+	
+	('if_x_x$else', ('if_x$x', '(if|prim)', 'prefix*'), ignore),
+	('if_x_x$else', ('if_x$x', '(if$-case|match)$+pref'), ignore),
+	
+	('if_x$x', ('IF', 'prefix*', '(if|prim)', 'prefix*'), ignore),
+	('if_x$x', ('IF', 'prefix*', '[^if|prim]$+pref'), ignore),
+	
+	('match_x$case..', ('MATCH', 'prefix*', '(if|prim)', 'prefix*'), ignore),
+	('match_x$case..', ('MATCH', 'prefix*', 'if$-else+pref'), ignore),
+	
+	('case_x_x$case..', ('case_x$x', '(if|prim)', 'prefix*'), ignore),
+	('case_x_x$case..', ('case_x$x', 'if$-else+pref'), ignore),
+	
+	('case_x$x', ('CASE', 'prefix*', '(if|prim)', 'prefix*'), ignore),
+	('case_x$x', ('CASE', 'prefix*', '[^if|prim]$+pref'), ignore),
+	
+	
+	('(if|prim)', ('if',), ignore),
+	('(if|prim)', ('prim',), ignore),
+	
+	('(if$-else|if$-else-case|match$-else)', ('if$-else',), ignore),
+	('(if$-else|if$-else-case|match$-else)', ('if$-else-case',), ignore),
+	('(if$-else|if$-else-case|match$-else)', ('match$-else',), ignore),
+	
+	('[^if|prim]$+pref', ('if$-else+pref',), ignore),
+	('[^if|prim]$+pref', ('if$-case+pref',), ignore),
+	('[^if|prim]$+pref', ('if$-else-case+pref',), ignore),
+	('[^if|prim]$+pref', ('match$+pref',), ignore),
+	('[^if|prim]$+pref', ('match$-else+pref',), ignore),
+	
+	('(if|if$-else|prim)', ('if',), ignore),
+	('(if|if$-else|prim)', ('if$-else',), ignore),
+	('(if|if$-else|prim)', ('prim',), ignore),
+	
+	('(if|if$-case|match|prim)', ('if',), ignore),
+	('(if|if$-case|match|prim)', ('if$-case',), ignore),
+	('(if|if$-case|match|prim)', ('match',), ignore),
+	('(if|if$-case|match|prim)', ('prim',), ignore),
+	
+	('(if$-case|if$-else-case|match|match$-else)', ('if$-case',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)', ('if$-else-case',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)', ('match',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)', ('match$-else',), ignore),
+	
+	('(if$-case|match)$+pref', ('if$-case+pref',), ignore),
+	('(if$-case|match)$+pref', ('match$+pref',), ignore),
+	
+	('(if$-else-case|match$-else)', ('if$-else-case',), ignore),
+	('(if$-else-case|match$-else)', ('match$-else',), ignore),
+	
+	('(if$-case|if$-else-case|match|match$-else)$+pref', ('if$-case',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)$+pref', ('if$-else-case',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)$+pref', ('match',), ignore),
+	('(if$-case|if$-else-case|match|match$-else)$+pref', ('match$-else',), ignore),
+	
+	('(if$-case|match)', ('if$-case',), ignore),
+	('(if$-case|match)', ('match',), ignore),
+	
+	('(if$-else|if$-else-case|match$-else)$+pref', ('if$-else+pref',), ignore),
+	('(if$-else|if$-else-case|match$-else)$+pref', ('if$-else-case+pref',), ignore),
+	('(if$-else|if$-else-case|match$-else)$+pref', ('match$-else+pref',), ignore),
+	
+	('(if$-else-case|match$-else)$+pref', ('if$-else-case',), ignore),
+	('(if$-else-case|match$-else)$+pref', ('match$-else',), ignore),
+	
+	
+	('prefix*', ('prefix*', '@', 'prim'), ignore),
 	('prefix*', (), ignore),
-	('postfixed+', ('postfixed+', 'postfixed'), ignore),
-	('postfixed+', ('postfixed',), ignore),
-	
-	('postfixed', ('prim', 'postfix*'), ignore),
-	('postfix*', ('postfix*', 'postfix'), ignore),
-	('postfix*', (), ignore),
-	('postfix', ('.', 'prim'), ignore),
 	
 	('prim', ('INT',), NodeInt),
 	('prim', ('IDENT',), NodeInt),
+	
+	# ('prefix*', ('prefix*', '@', 'postfixed+'), ignore),
+	# ('prefix*', ('prefix*', '#[', 'postfixed', ']'), ignore),
+	# ('prefix*', (), ignore),
+	# ('postfixed+', ('postfixed+', 'postfixed'), ignore),
+	# ('postfixed+', ('postfixed',), ignore),
+	
+	# ('postfixed', ('prim', 'postfix*'), ignore),
+	# ('postfix*', ('postfix*', 'postfix'), ignore),
+	# ('postfix*', (), ignore),
+	# ('postfix', ('.', 'prim'), ignore),
+	
+	# ('prim', ('INT',), NodeInt),
+	# ('prim', ('IDENT',), NodeInt),
 ]
 SYNTAX_RULES2 = [
 	('S', ('stmt_lst',), ignore),
