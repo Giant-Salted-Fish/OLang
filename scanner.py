@@ -5,7 +5,7 @@ from typing import override
 
 class Token[T]:
 	@override
-	def __init__(self, type_: T | None, lines: Sequence[str], line_num: int, col_idx: int, token_len: int):
+	def __init__(self, type_: T | None, lines: Sequence[str], line_num: int, col_idx: int, token_len: int) -> None:
 		self._type = type_
 		self._lines = lines
 		self._line_num = line_num

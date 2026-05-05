@@ -12,12 +12,12 @@ if __name__ == "__main__":
 	
 	scanner = Scanner[str].Build(lang_spec.TOKEN_TYPES)
 	syntax = Syntax[str, str, lang_ast.Node].Build(lang_spec.PRODUCTIONS, lang_spec.TERMINALS.__contains__)
-	ast = syntax.BruteLR1Parse(scanner.Tokenize(source_code))
+	ast = syntax.BruteLr1Parse(scanner.Tokenize(source_code))
 	print("===== Reproduced Source Code (May not be 100%% correct) =====")
 	print("\n".join(ast.Accept(ToOLangCode("    "))))
 	print()
 	
-	parser = syntax.BuildLR1Parser()
+	parser = syntax.BuildLr1Parser()
 	print("===== LR(1) Parser State =====")
 	print(parser)
 	print()

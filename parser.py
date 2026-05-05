@@ -19,6 +19,13 @@ class Item[N, T, R](NamedTuple):
 	lookahead: frozenset[T | None]
 	
 	@override
+	def __str__(self) -> str:
+		prod = self.production
+		rhs = map(str, (*prod.rhs[:self.dot_pos], '.', *prod.rhs[self.dot_pos:]))
+		lkahd = map(str, self.lookahead)
+		return f'{prod.lhs} -> {' '.join(rhs)} {{{', '.join(lkahd)}}}'
+	
+	@override
 	def __repr__(self) -> str:
 		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
 
@@ -94,8 +101,8 @@ class Syntax[N, T, R]:
 				new_lookahead |= lookahead
 			
 			next_prods = self.GetProductionsOf(next_symbol)
-			for p, ahd in zip(next_prods, (new_lookahead,) + tuple(new_lookahead.copy() for _ in range(len(next_prods) - 1))):
-				expand_item(p, 0, ahd)
+			for prod, lkahd in zip(next_prods, (new_lookahead,) + tuple(new_lookahead.copy() for _ in range(len(next_prods) - 1))):
+				expand_item(prod, 0, lkahd)
 		
 		for production, dot_pos, lookahead in items:
 			expand_item(production, dot_pos, set(lookahead))
@@ -106,7 +113,7 @@ class Syntax[N, T, R]:
 			for (item, dot_pos), lookahead in new_state.items()
 		)
 	
-	def BuildLR1Parser(self) -> Parser[N, T, R]:
+	def BuildLr1Parser(self) -> Parser[N, T, R]:
 		state_table: dict[frozenset[Item[N, T, R]], int] = {}
 		shift_table: dict[tuple[int, T | None], int] = {}  # Can be typed as dist[tuple[int, T], int]
 		reduce_table: dict[tuple[int, T | None], Production[N, T, R]] = {}
@@ -158,7 +165,7 @@ class Syntax[N, T, R]:
 			state_tbl[sid] = state
 		return Parser(self, state_tbl, shift_table, reduce_table, goto_table)
 	
-	def BruteLR1Parse(self, token_stream: Iterator[Token[T]]) -> R:
+	def BruteLr1Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [self.BuildInitialState()]
 		action_stack: list[R | Token[T]] = []
 		accept = False
@@ -167,7 +174,8 @@ class Syntax[N, T, R]:
 				raise Exception("Unexpected end of input")
 			
 			# TODO: This is a hack
-			if token.GetType() == "COMMENT":
+			token_type = token.GetType()
+			if token_type == "COMMENT":
 				continue
 			
 			while True:
@@ -176,7 +184,7 @@ class Syntax[N, T, R]:
 				new_items = tuple(
 					(production, dot_pos + 1, lookahead)
 					for production, dot_pos, lookahead in state
-					if dot_pos < len(production.rhs) and production.rhs[dot_pos] == token.GetType()
+					if dot_pos < len(production.rhs) and production.rhs[dot_pos] == token_type
 				)
 				if len(new_items) > 0:
 					new_state = self.ExpandState(new_items)
@@ -188,7 +196,7 @@ class Syntax[N, T, R]:
 				productions = tuple(
 					production
 					for production, dot_pos, lookahead in state
-					if dot_pos == len(production.rhs) and token.GetType() in lookahead
+					if dot_pos == len(production.rhs) and token_type in lookahead
 				)
 				if len(productions) == 0:
 					terminals = set()
@@ -211,7 +219,7 @@ class Syntax[N, T, R]:
 				action_stack.append(action_result)
 				
 				state_stack = state_stack[:split_idx + 1]
-				if token.GetType() is None and reduce_rule.lhs == self._start_symbol:
+				if token_type is None and reduce_rule.lhs == self._start_symbol:
 					accept = True
 					break
 				
@@ -286,7 +294,7 @@ class Parser[N, T, R]:
 		self._goto_table = goto_table
 	
 	@override
-	def __str__(self):
+	def __str__(self) -> str:
 		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
 	
 	def Parse(self, token_stream: Iterator[Token[T]]) -> R:
