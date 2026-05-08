@@ -15,12 +15,7 @@ def ignore(*args):
 	return None
 
 source_code = '''
-if a b
-match c
-case d e
-@f @g h;
-#[i] j;
-k: int
+,,,,
 '''
 
 SYNTAX_RULES = [
@@ -509,7 +504,7 @@ SYNTAX_RULES = [
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match$-else norm_stmt'), ignore),
-	('norm_stmt', ('suffixed', ';'), ignore),
+	('norm_stmt', ('union', ';'), ignore),
 	('norm_stmt', (';',), ignore),
 	
 	('last_stmt', ('prefix*', 'if$-else last_stmt'), ignore),
@@ -517,8 +512,32 @@ SYNTAX_RULES = [
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match$-else last_stmt'), ignore),
-	('last_stmt', ('suffixed',), ignore),
+	('last_stmt', ('union',), ignore),
 	('last_stmt', (), ignore),
+	
+	
+	('union', ('tuple',), ignore),
+	('union', ('tuple', '|', 'union..'), ignore),
+	('union', ('|', 'union..'), ignore),
+	('..union', ('..tuple',), ignore),
+	('..union', ('..tuple', '|', 'union..'), ignore),
+	('union..', ('(tuple|..tuple)', '|', 'union..'), ignore),
+	('union..', ('|', 'union..'), ignore),
+	('union..', (), ignore),
+	('(tuple|..tuple)', ('tuple',), ignore),
+	('(tuple|..tuple)', ('..tuple',), ignore),
+	
+	
+	('tuple', ('suffixed',), ignore),
+	('tuple', ('suffixed', ',', 'tuple..'), ignore),
+	('tuple', (',', 'tuple..',), ignore),
+	('..tuple', ('..suffixed',), ignore),
+	('..tuple', ('..suffixed', ',', 'tuple..'), ignore),
+	('tuple..', ('(suffixed|..suffixed)', ',', 'tuple..'), ignore),
+	('tuple..', (',', 'tuple..'), ignore),
+	('tuple..', (), ignore),
+	('(suffixed|..suffixed)', ('suffixed',), ignore),
+	('(suffixed|..suffixed)', ('..suffixed',), ignore),
 	
 	
 	('suffixed', ('lmbd', 'suffix*'), ignore),
