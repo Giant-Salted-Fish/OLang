@@ -20,7 +20,7 @@ match c
 case d e
 @f @g h;
 #[i] j;
-k
+k: int
 '''
 
 SYNTAX_RULES = [
@@ -509,9 +509,7 @@ SYNTAX_RULES = [
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match$-else norm_stmt'), ignore),
-	('norm_stmt', ('(prefix* #[x])?', 'call', ';'), ignore),
-	('norm_stmt', ('prefixed', ';'), ignore),
-	('norm_stmt', ('(prefix* #[x])?', 'postfixed', ';'), ignore),
+	('norm_stmt', ('suffixed', ';'), ignore),
 	('norm_stmt', (';',), ignore),
 	
 	('last_stmt', ('prefix*', 'if$-else last_stmt'), ignore),
@@ -519,17 +517,100 @@ SYNTAX_RULES = [
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match$-else last_stmt'), ignore),
-	('last_stmt', ('(prefix* #[x])?', 'call'), ignore),
-	('last_stmt', ('prefixed',), ignore),
-	('last_stmt', ('(prefix* #[x])?', 'postfixed'), ignore),
+	('last_stmt', ('suffixed',), ignore),
 	('last_stmt', (), ignore),
 	
 	
+	('suffixed', ('lmbd', 'suffix*'), ignore),
+	('..suffixed', ('..lmbd', 'suffix*'), ignore),
+	('suffix*', ('suffix*', ':', '(lmbd|..lmbd)'), ignore),
+	('suffix*', (), ignore),
+	
+	
+	('lmbd', ('or', '->', '(lmbd|..lmbd)'), ignore),
+	('lmbd', ('or',), ignore),
+	('..lmbd', ('..or', '->', '(lmbd|..lmbd)'), ignore),
+	('..lmbd', ('..or',), ignore),
+	('(lmbd|..lmbd)', ('lmbd',), ignore),
+	('(lmbd|..lmbd)', ('..lmbd',), ignore),
+	
+	
+	("or", ("or", "||", "(and|..and)"), lambda lhs, OR, rhs: NodeLogicalOp(OR, lhs, rhs)),
+	("or", ("and",), lambda x: x),
+	("..or", ("..or", "||", "(and|..and)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("..or", ("..and",), lambda x: x),
+	("(and|..and)", ("and",), lambda x: x),
+	("(and|..and)", ("..and",), lambda x: x),
+	
+	
+	# and: eq (&& (eq|..eq))*
+	("and", ("and", "&&", "(eq|..eq)"), lambda lhs, OP, rhs: NodeLogicalOp(OP, lhs, rhs)),
+	("and", ("eq",), lambda x: x),
+	("..and", ("..and", "&&", "(eq|..eq)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("..and", ("..eq",), lambda x: x),
+	("(eq|..eq)", ("eq",), lambda x: x),
+	("(eq|..eq)", ("..eq",), lambda x: x),
+	
+	
+	# ('expr', ('add',), ignore),
+	# ('expr', ('..add',), ignore),
+	("eq", ("eq", "(==|!=)", "(rel|..rel)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("eq", ("rel",), lambda x: x),
+	("..eq", ("..eq", "(==|!=)", "(rel|..rel)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("..eq", ("..rel",), lambda x: x),
+	("(==|!=)", ("==",), lambda EQ: EQ),
+	("(==|!=)", ("!=",), lambda NEQ: NEQ),
+	("(rel|..rel)", ("rel",), lambda x: x),
+	("(rel|..rel)", ("..rel",), lambda x: x),
+	
+	
+	("rel", ("rel", "(<=|>=|<|>)", "(add|..add)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("rel", ("add",), lambda x: x),
+	("..rel", ("..rel", "(<=|>=|<|>)", "(add|..add)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("..rel", ("..add",), lambda x: x),
+	("(<=|>=|<|>)", (">=",), lambda GTE: GTE),
+	("(<=|>=|<|>)", ("<=",), lambda LSE: LSE),
+	("(<=|>=|<|>)", (">",), lambda GT: GT),
+	("(<=|>=|<|>)", ("<",), lambda LS: LS),
+	("(add|..add)", ("add",), lambda x: x),
+	("(add|..add)", ("..add",), lambda x: x),
+	
+	
+	("add", ("add", "(+|-)", "(mul|..mul)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("add", ("mul",), lambda x: x),
+	("..add", ("..add", "(+|-)", "(mul|..mul)"), lambda lhs, OP, rhs: NodeBinaryOp(OP, lhs, rhs)),
+	("..add", ("..mul",), lambda x: x),
+	("(+|-)", ("+",), lambda PLUS: PLUS),
+	("(+|-)", ("-",), lambda MINUS: MINUS),
+	("(mul|..mul)", ("mul",), lambda x: x),
+	("(mul|..mul)", ("..mul",), lambda x: x),
+	
+	
+	('mul', ('mul', '(*|/|%)', '(unary|prefix* [^postfixed])'), ignore),
+	('mul', ('unary',), ignore),
+	('..mul', ('..mul', '(*|/|%)', '(unary|prefix* [^postfixed])'), ignore),
+	('..mul', ('prefix*', '[^postfixed]'), ignore),
+	("(*|/|%)", ("*",), lambda MUL: MUL),
+	("(*|/|%)", ("/",), lambda DIV: DIV),
+	("(*|/|%)", ("%",), lambda MOD: MOD),
+	('(unary|prefix* [^postfixed])', ('unary',), ignore),
+	('(unary|prefix* [^postfixed])', ('prefix*', '[^postfixed]'), ignore),  # TODO: What else can be here?
+	
+	
+	('unary', ('(+|-|!|&|*)', '(unary|prefix* [^postfixed])'), ignore),
+	('unary', ('(prefix* #[x])?', 'call'), ignore),
+	('unary', ('prefixed',), ignore),
+	("(+|-|!|&|*)", ("+",), lambda PLUS: PLUS),
+	("(+|-|!|&|*)", ("-",), lambda MINUS: MINUS),
+	("(+|-|!|&|*)", ("!",), lambda NOT: NOT),
+	("(+|-|!|&|*)", ("&",), lambda AMPERSAND: AMPERSAND),
+	("(+|-|!|&|*)", ("*",), lambda MUL: MUL),
+	
+	
 	('call', ('postfixed+', 'prefix*', '#[', 'postfixed', ']', 'call'), ignore),
-	# TODO: Delete prefix then it will naturally contain postfix.
-	('call', ('postfixed+', 'prefix*', '#[', 'postfixed', ']', 'postfixed+'), ignore),
+	('call', ('postfixed+',), ignore),
 	('call', ('postfixed+', 'prefixed'), ignore),
-	# TODO: break, continue expr can also be here.
+	# TODO: decl can also be here.
 	('call', ('postfixed+', 'prefix*', '[^postfixed]'), ignore),
 	
 	
