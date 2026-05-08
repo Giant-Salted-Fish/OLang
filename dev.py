@@ -509,6 +509,7 @@ SYNTAX_RULES = [
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match$-else norm_stmt'), ignore),
+	('norm_stmt', ('(prefix* #[x])?', 'call', ';'), ignore),
 	('norm_stmt', ('prefixed', ';'), ignore),
 	('norm_stmt', ('(prefix* #[x])?', 'postfixed', ';'), ignore),
 	('norm_stmt', (';',), ignore),
@@ -518,9 +519,18 @@ SYNTAX_RULES = [
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match$-else last_stmt'), ignore),
+	('last_stmt', ('(prefix* #[x])?', 'call'), ignore),
 	('last_stmt', ('prefixed',), ignore),
 	('last_stmt', ('(prefix* #[x])?', 'postfixed'), ignore),
 	('last_stmt', (), ignore),
+	
+	
+	('call', ('postfixed+', 'prefix*', '#[', 'postfixed', ']', 'call'), ignore),
+	# TODO: Delete prefix then it will naturally contain postfix.
+	('call', ('postfixed+', 'prefix*', '#[', 'postfixed', ']', 'postfixed+'), ignore),
+	('call', ('postfixed+', 'prefixed'), ignore),
+	# TODO: break, continue expr can also be here.
+	('call', ('postfixed+', 'prefix*', '[^postfixed]'), ignore),
 	
 	
 	('if', ('(IF x x)$else', 'else'), ignore),
