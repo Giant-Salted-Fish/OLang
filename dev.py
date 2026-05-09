@@ -5,10 +5,10 @@ from lang_ast import (
 	NodeUnaryOp, NodeAccess, NodeIndex, NodeReturn, NodeBreak, NodeContinue, NodeIfElse,
 	NodeWhileElse, NodeForElse, NodeNamedTuple, NodeNamedStruct
 )
+from typing import Any
 
 import typing
 if typing.TYPE_CHECKING:
-	from typing import Any
 	from collections.abc import Callable
 
 def ignore(*args):
@@ -18,18 +18,18 @@ source_code = '''
 fn a b + 1
 '''
 
-SYNTAX_RULES = [
+SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
 	('S', ('stmt_lst',), ignore),
 	
 	('stmt_lst', ('norm_stmt', 'stmt_lst'), ignore),
 	('stmt_lst', ('last_stmt',), ignore),
 	
 	
-	('norm_stmt', ('prefix*', 'fn'), ignore),
+	('norm_stmt', ('prefix*', 'fn_def'), ignore),
+	('norm_stmt', ('prefix*', 'fn_def$-else norm_stmt'), ignore),
+	('norm_stmt', ('prefix*', 'fn_def$-case norm_stmt'), ignore),
+	('norm_stmt', ('prefix*', 'fn_def$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if'), ignore),
-	('norm_stmt', ('prefix*', 'fn$-else norm_stmt'), ignore),
-	('norm_stmt', ('prefix*', 'fn$-case norm_stmt'), ignore),
-	('norm_stmt', ('prefix*', 'fn$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-else norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
@@ -40,9 +40,9 @@ SYNTAX_RULES = [
 	('norm_stmt', (';',), ignore),
 	
 	
-	('last_stmt', ('prefix*', 'fn$-else last_stmt'), ignore),
-	('last_stmt', ('prefix*', 'fn$-case last_stmt'), ignore),
-	('last_stmt', ('prefix*', 'fn$-else-case last_stmt'), ignore),
+	('last_stmt', ('prefix*', 'fn_def$-else last_stmt'), ignore),
+	('last_stmt', ('prefix*', 'fn_def$-case last_stmt'), ignore),
+	('last_stmt', ('prefix*', 'fn_def$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-else last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
@@ -53,10 +53,10 @@ SYNTAX_RULES = [
 	('last_stmt', (), ignore),
 	
 	
-	('stmt', ('RETURN', 'expr'), ignore),
-	('stmt', ('BREAK', 'expr'), ignore),
-	('stmt', ('BREAK',), ignore),
-	('stmt', ('CONTINUE',), ignore),
+	('stmt', ('prefix*', 'RETURN', 'expr'), ignore),
+	('stmt', ('prefix*', 'BREAK', 'expr'), ignore),
+	('stmt', ('prefix*', 'BREAK',), ignore),
+	('stmt', ('prefix*', 'CONTINUE',), ignore),
 	
 	
 	('expr', ('assign',), ignore),
@@ -162,18 +162,20 @@ SYNTAX_RULES = [
 	("(mul|..mul)", ("..mul",), lambda x: x),
 	
 	
-	('mul', ('mul', '(*|/|%)', '(unary|prefix* ctrl_flow)'), ignore),
+	('mul', ('mul', '(*|/|%)', '(unary|def|prefix* ctrl_flow)'), ignore),
 	('mul', ('unary',), ignore),
-	('..mul', ('..mul', '(*|/|%)', '(unary|prefix* ctrl_flow)'), ignore),
+	('..mul', ('..mul', '(*|/|%)', '(unary|def|prefix* ctrl_flow)'), ignore),
+	('..mul', ('prefix*', 'def',), ignore),
 	('..mul', ('prefix*', 'ctrl_flow'), ignore),
 	("(*|/|%)", ("*",), lambda MUL: MUL),
 	("(*|/|%)", ("/",), lambda DIV: DIV),
 	("(*|/|%)", ("%",), lambda MOD: MOD),
-	('(unary|prefix* ctrl_flow)', ('unary',), ignore),
-	('(unary|prefix* ctrl_flow)', ('prefix*', 'ctrl_flow'), ignore),  # TODO: What else can be here?
+	('(unary|def|prefix* ctrl_flow)', ('unary',), ignore),
+	('(unary|def|prefix* ctrl_flow)', ('prefix*', 'def'), ignore),
+	('(unary|def|prefix* ctrl_flow)', ('prefix*', 'ctrl_flow'), ignore),  # TODO: What else can be here?
 	
 	
-	('unary', ('(+|-|!|&|*)', '(unary|prefix* ctrl_flow)'), ignore),
+	('unary', ('(+|-|!|&|*)', '(unary|def|prefix* ctrl_flow)'), ignore),
 	('unary', ('(prefix* #[x])?', 'call'), ignore),
 	('unary', ('prefix*', 'fn_like'), ignore),
 	('unary', ('prefixed',), ignore),
@@ -186,9 +188,31 @@ SYNTAX_RULES = [
 	
 	('call', ('postfixed+', 'prefix*', '#[', 'postfixed', ']', 'call'), ignore),
 	('call', ('postfixed+',), ignore),
-	('call', ('postfixed+', 'prefixed'), ignore),
-	# TODO: decl can also be here.
+	('call', ('postfixed+', 'prefix*', 'def'), ignore),
 	('call', ('postfixed+', 'prefix*', '[^postfixed]'), ignore),
+	('call', ('postfixed+', 'prefixed'), ignore),
+	
+	
+	('def', ('fn_def',), ignore),
+	('def', ('fn_def$-else',), ignore),
+	('def', ('fn_def$-case',), ignore),
+	('def', ('fn_def$-else-case',), ignore),
+	
+	
+	('fn_def', ('(FN x x)$postfixed', 'postfixed'), ignore),
+	('fn_def', ('(FN x x)$[^postfixed]', 'x'), ignore),
+	
+	('fn_def$-else', ('(FN x x)$[^postfixed]', 'x$-else'), ignore),
+	('fn_def$-else norm_stmt', ('(FN x x)$[^postfixed]', 'x$-else norm_stmt'), ignore),
+	('fn_def$-else last_stmt', ('(FN x x)$[^postfixed]', 'x$-else last_stmt'), ignore),
+	
+	('fn_def$-case', ('(FN x x)$[^postfixed]', 'x$-case'), ignore),
+	('fn_def$-case norm_stmt', ('(FN x x)$[^postfixed]', 'x$-case norm_stmt'), ignore),
+	('fn_def$-case last_stmt', ('(FN x x)$[^postfixed]', 'x$-case last_stmt'), ignore),
+	
+	('fn_def$-else-case', ('(FN x x)$[^postfixed]', 'x$-else-case'), ignore),
+	('fn_def$-else-case norm_stmt', ('(FN x x)$[^postfixed]', 'x$-else-case norm_stmt'), ignore),
+	('fn_def$-else-case last_stmt', ('(FN x x)$[^postfixed]', 'x$-else-case last_stmt'), ignore),
 	
 	
 	('fn', ('(FN x)$postfixed', 'postfixed'), ignore),
@@ -321,6 +345,13 @@ SYNTAX_RULES = [
 	('match$-else last_stmt', ('(MATCH x)$case..', 'case..$-else last_stmt'), ignore),
 	('case..$-else last_stmt', ('(CASE x x)$case..', 'case..$-else last_stmt'), ignore),
 	('case..$-else last_stmt', ('(CASE x)$[^postfixed]', 'x$-else-?case last_stmt'), ignore),
+	
+	
+	('(FN x x)$postfixed', ('(FN x)$postfixed', 'postfixed', '(prefix* #[x])?'), ignore),
+	('(FN x x)$postfixed', ('(FN x)$[^postfixed]', '[^postfixed] (prefix* #[x])?'), ignore),
+	
+	('(FN x x)$[^postfixed]', ('(FN x)$postfixed', 'postfixed', 'prefix*'), ignore),
+	('(FN x x)$[^postfixed]', ('(FN x)$[^postfixed]', '[^postfixed] prefix*'), ignore),
 	
 	
 	('(FN x)$postfixed', ('FN', '(prefix* #[x])?', 'postfixed', '(prefix* #[x])?'), ignore),
@@ -585,6 +616,11 @@ SYNTAX_RULES = [
 	
 	('prim', ('INT',), NodeInt),
 	('prim', ('IDENT',), NodeInt),
+	('prim', ('STR',), NodeStr),
+	('prim', ('BOOL',), NodeBool),
+	('prim', ('(', ')'), ignore),
+	('prim', ('(', 'expr', ')'), ignore),
+	('prim', ('(', 'stmt', ')'), ignore),
 ]
 
 TOKEN_TYPES = [
@@ -607,7 +643,7 @@ if __name__ == '__main__':
 			f.write(f'{msg}\n')
 		
 		scanner = Scanner[str].Build(TOKEN_TYPES)
-		syntax = Syntax[str, str, lang_ast.Node].Build([Production(*p) for p in SYNTAX_RULES], TERMINALS.__contains__)
+		syntax = Syntax[str, str, Any].Build([Production(*p) for p in SYNTAX_RULES], TERMINALS.__contains__)
 		parser = syntax.BuildLR1Parser()
 		write('===== LR(1) Parser State =====')
 		write(parser)
