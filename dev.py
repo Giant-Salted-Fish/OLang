@@ -504,16 +504,31 @@ SYNTAX_RULES = [
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match$-else norm_stmt'), ignore),
-	('norm_stmt', ('union', ';'), ignore),
+	('norm_stmt', ('assign', ';'), ignore),
 	('norm_stmt', (';',), ignore),
+	
 	
 	('last_stmt', ('prefix*', 'if$-else last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match$-else last_stmt'), ignore),
-	('last_stmt', ('union',), ignore),
+	('last_stmt', ('assign',), ignore),
 	('last_stmt', (), ignore),
+	
+	
+	('expr', ('assign',), ignore),
+	('expr', ('..assign',), ignore),
+	
+	
+	('assign', ('(let|union)', '=', 'expr'), ignore),
+	('assign', ('(let|union)',), ignore),
+	('..assign', ('..union', '=', 'expr'), ignore),
+	('..assign', ('..union',), ignore),
+	('(let|union)', ('prefix*', 'LET', '(union|..union)'), ignore),
+	('(let|union)', ('union',), ignore),
+	('(union|..union)', ('union',), ignore),
+	('(union|..union)', ('..union',), ignore),
 	
 	
 	('union', ('tuple',), ignore),
