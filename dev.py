@@ -15,7 +15,7 @@ def ignore(*args):
 	return None
 
 source_code = '''
-,,,,
+fn a b + 1
 '''
 
 SYNTAX_RULES = [
@@ -25,7 +25,11 @@ SYNTAX_RULES = [
 	('stmt_lst', ('last_stmt',), ignore),
 	
 	
+	('norm_stmt', ('prefix*', 'fn'), ignore),
 	('norm_stmt', ('prefix*', 'if'), ignore),
+	('norm_stmt', ('prefix*', 'fn$-else norm_stmt'), ignore),
+	('norm_stmt', ('prefix*', 'fn$-case norm_stmt'), ignore),
+	('norm_stmt', ('prefix*', 'fn$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-else norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
@@ -36,6 +40,9 @@ SYNTAX_RULES = [
 	('norm_stmt', (';',), ignore),
 	
 	
+	('last_stmt', ('prefix*', 'fn$-else last_stmt'), ignore),
+	('last_stmt', ('prefix*', 'fn$-case last_stmt'), ignore),
+	('last_stmt', ('prefix*', 'fn$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-else last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
@@ -155,19 +162,20 @@ SYNTAX_RULES = [
 	("(mul|..mul)", ("..mul",), lambda x: x),
 	
 	
-	('mul', ('mul', '(*|/|%)', '(unary|prefix* [^postfixed])'), ignore),
+	('mul', ('mul', '(*|/|%)', '(unary|prefix* ctrl_flow)'), ignore),
 	('mul', ('unary',), ignore),
-	('..mul', ('..mul', '(*|/|%)', '(unary|prefix* [^postfixed])'), ignore),
-	('..mul', ('prefix*', '[^postfixed]'), ignore),
+	('..mul', ('..mul', '(*|/|%)', '(unary|prefix* ctrl_flow)'), ignore),
+	('..mul', ('prefix*', 'ctrl_flow'), ignore),
 	("(*|/|%)", ("*",), lambda MUL: MUL),
 	("(*|/|%)", ("/",), lambda DIV: DIV),
 	("(*|/|%)", ("%",), lambda MOD: MOD),
-	('(unary|prefix* [^postfixed])', ('unary',), ignore),
-	('(unary|prefix* [^postfixed])', ('prefix*', '[^postfixed]'), ignore),  # TODO: What else can be here?
+	('(unary|prefix* ctrl_flow)', ('unary',), ignore),
+	('(unary|prefix* ctrl_flow)', ('prefix*', 'ctrl_flow'), ignore),  # TODO: What else can be here?
 	
 	
-	('unary', ('(+|-|!|&|*)', '(unary|prefix* [^postfixed])'), ignore),
+	('unary', ('(+|-|!|&|*)', '(unary|prefix* ctrl_flow)'), ignore),
 	('unary', ('(prefix* #[x])?', 'call'), ignore),
+	('unary', ('prefix*', 'fn_like'), ignore),
 	('unary', ('prefixed',), ignore),
 	("(+|-|!|&|*)", ("+",), lambda PLUS: PLUS),
 	("(+|-|!|&|*)", ("-",), lambda MINUS: MINUS),
@@ -183,30 +191,55 @@ SYNTAX_RULES = [
 	('call', ('postfixed+', 'prefix*', '[^postfixed]'), ignore),
 	
 	
+	('fn', ('(FN x)$postfixed', 'postfixed'), ignore),
+	('fn', ('(FN x)$[^postfixed]', 'x'), ignore),
+	
+	
+	('fn$-else', ('(FN x)$[^postfixed]', 'x$-else'), ignore),
+	('fn$-else prefix*', ('(FN x)$[^postfixed]', 'x$-else prefix*'), ignore),
+	('fn$-else (prefix* #[x])?', ('(FN x)$[^postfixed]', 'x$-else (prefix* #[x])?'), ignore),
+	('fn$-else norm_stmt', ('(FN x)$[^postfixed]', 'x$-else norm_stmt'), ignore),
+	('fn$-else last_stmt', ('(FN x)$[^postfixed]', 'x$-else last_stmt'), ignore),
+	
+	
+	('fn$-case', ('(FN x)$[^postfixed]', 'x$-case'), ignore),
+	('fn$-case prefix*', ('(FN x)$[^postfixed]', 'x$-case prefix*'), ignore),
+	('fn$-case (prefix* #[x])?', ('(FN x)$[^postfixed]', 'x$-case (prefix* #[x])?'), ignore),
+	('fn$-case norm_stmt', ('(FN x)$[^postfixed]', 'x$-case norm_stmt'), ignore),
+	('fn$-case last_stmt', ('(FN x)$[^postfixed]', 'x$-case last_stmt'), ignore),
+	
+	
+	('fn$-else-case', ('(FN x)$[^postfixed]', 'x$-else-case'), ignore),
+	('fn$-else-case prefix*', ('(FN x)$[^postfixed]', 'x$-else-case prefix*'), ignore),
+	('fn$-else-case (prefix* #[x])?', ('(FN x)$[^postfixed]', 'x$-else-case (prefix* #[x])?'), ignore),
+	('fn$-else-case norm_stmt', ('(FN x)$[^postfixed]', 'x$-else-case norm_stmt'), ignore),
+	('fn$-else-case last_stmt', ('(FN x)$[^postfixed]', 'x$-else-case last_stmt'), ignore),
+	
+	
 	('if', ('(IF x x)$else', 'else'), ignore),
-	('else', ('ELSE', 'prefix*', 'if'), ignore),
+	('else', ('ELSE', 'prefix*', 'x'), ignore),
 	('else', ('ELSE', '(prefix* #[x])?', 'postfixed'), ignore),
 	
 	
 	('if$-else', ('(IF x)$postfixed', 'postfixed'), ignore),
 	('if$-else', ('(IF x)$[^postfixed]', 'x$-?else'), ignore),
-	('if$-else', ('(IF x x)$else', 'ELSE', 'prefix*', 'if$-else'), ignore),
+	('if$-else', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-else'), ignore),
 	
 	('if$-else prefix*', ('(IF x)$postfixed', 'postfixed', 'prefix*'), ignore),
 	('if$-else prefix*', ('(IF x)$[^postfixed]', 'x$-?else prefix*'), ignore),
-	('if$-else prefix*', ('(IF x x)$else', 'ELSE', 'prefix*', 'if$-else prefix*'), ignore),
+	('if$-else prefix*', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-else prefix*'), ignore),
 	
 	('if$-else (prefix* #[x])?', ('(IF x)$postfixed', 'postfixed', '(prefix* #[x])?'), ignore),
 	('if$-else (prefix* #[x])?', ('(IF x)$[^postfixed]', 'x$-?else (prefix* #[x])?'), ignore),
-	('if$-else (prefix* #[x])?', ('(IF x x)$else', 'ELSE', 'prefix*', 'if$-else (prefix* #[x])?'), ignore),
+	('if$-else (prefix* #[x])?', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-else (prefix* #[x])?'), ignore),
 	
 	('if$-else norm_stmt', ('(IF x)$postfixed', 'postfixed', 'norm_stmt'), ignore),
 	('if$-else norm_stmt', ('(IF x)$[^postfixed]', 'x$-?else norm_stmt'), ignore),
-	('if$-else norm_stmt', ('(IF x x)$else', 'ELSE', 'prefix*', 'if$-else norm_stmt'), ignore),
+	('if$-else norm_stmt', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-else norm_stmt'), ignore),
 	
 	('if$-else last_stmt', ('(IF x)$postfixed', 'postfixed', 'last_stmt'), ignore),
 	('if$-else last_stmt', ('(IF x)$[^postfixed]', 'x$-?else last_stmt'), ignore),
-	('if$-else last_stmt', ('(IF x x)$else', 'ELSE', 'prefix*', 'if$-else last_stmt'), ignore),
+	('if$-else last_stmt', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-else last_stmt'), ignore),
 	
 	
 	('if$-case', ('(IF x x)$else', 'ELSE', 'prefix*', 'x$-case'), ignore),
@@ -290,6 +323,13 @@ SYNTAX_RULES = [
 	('case..$-else last_stmt', ('(CASE x)$[^postfixed]', 'x$-else-?case last_stmt'), ignore),
 	
 	
+	('(FN x)$postfixed', ('FN', '(prefix* #[x])?', 'postfixed', '(prefix* #[x])?'), ignore),
+	('(FN x)$postfixed', ('FN', 'prefix*', '[^postfixed] (prefix* #[x])?'), ignore),
+	
+	('(FN x)$[^postfixed]', ('FN', '(prefix* #[x])?', 'postfixed', 'prefix*'), ignore),
+	('(FN x)$[^postfixed]', ('FN', 'prefix*', '[^postfixed] prefix*'), ignore),
+	
+	
 	('(IF x x)$else', ('(IF x)$postfixed', 'postfixed', 'prefix*'), ignore),
 	('(IF x x)$else', ('(IF x)$[^postfixed]', 'x$-?case prefix*'), ignore),
 	
@@ -312,13 +352,25 @@ SYNTAX_RULES = [
 	('(CASE x)$[^postfixed]', ('CASE', 'prefix*', '[^postfixed] prefix*'), ignore),
 	
 	
-	('[^postfixed]', ('if',), ignore),
-	('[^postfixed]', ('if$-else',), ignore),
-	('[^postfixed]', ('if$-case',), ignore),
-	('[^postfixed]', ('if$-else-case',), ignore),
-	('[^postfixed]', ('match',), ignore),
-	('[^postfixed]', ('match$-else',), ignore),
+	('[^postfixed]', ('fn_like',), ignore),
+	('[^postfixed]', ('ctrl_flow',), ignore),
 	
+	('fn_like', ('fn',), ignore),
+	('fn_like', ('fn$-else',), ignore),
+	('fn_like', ('fn$-case',), ignore),
+	('fn_like', ('fn$-else-case',), ignore),
+	
+	('ctrl_flow', ('if',), ignore),
+	('ctrl_flow', ('if$-else',), ignore),
+	('ctrl_flow', ('if$-case',), ignore),
+	('ctrl_flow', ('if$-else-case',), ignore),
+	('ctrl_flow', ('match',), ignore),
+	('ctrl_flow', ('match$-else',), ignore),
+	
+	('[^postfixed] prefix*', ('fn', 'prefix*'), ignore),
+	('[^postfixed] prefix*', ('fn$-else prefix*',), ignore),
+	('[^postfixed] prefix*', ('fn$-case prefix*',), ignore),
+	('[^postfixed] prefix*', ('fn$-else-case prefix*',), ignore),
 	('[^postfixed] prefix*', ('if', 'prefix*'), ignore),
 	('[^postfixed] prefix*', ('if$-else prefix*',), ignore),
 	('[^postfixed] prefix*', ('if$-case prefix*',), ignore),
@@ -326,6 +378,10 @@ SYNTAX_RULES = [
 	('[^postfixed] prefix*', ('match prefix*',), ignore),
 	('[^postfixed] prefix*', ('match$-else prefix*',), ignore),
 	
+	('[^postfixed] (prefix* #[x])?', ('fn', '(prefix* #[x])?'), ignore),
+	('[^postfixed] (prefix* #[x])?', ('fn$-else (prefix* #[x])?',), ignore),
+	('[^postfixed] (prefix* #[x])?', ('fn$-case (prefix* #[x])?',), ignore),
+	('[^postfixed] (prefix* #[x])?', ('fn$-else-case (prefix* #[x])?',), ignore),
 	('[^postfixed] (prefix* #[x])?', ('if', '(prefix* #[x])?'), ignore),
 	('[^postfixed] (prefix* #[x])?', ('if$-else (prefix* #[x])?',), ignore),
 	('[^postfixed] (prefix* #[x])?', ('if$-case (prefix* #[x])?',), ignore),
@@ -333,111 +389,179 @@ SYNTAX_RULES = [
 	('[^postfixed] (prefix* #[x])?', ('match (prefix* #[x])?',), ignore),
 	('[^postfixed] (prefix* #[x])?', ('match$-else (prefix* #[x])?',), ignore),
 	
+	('x', ('fn',), ignore),
+	('x', ('if',), ignore),
+	
+	('x$-else', ('fn$-else',), ignore),
+	('x$-else', ('if$-else',), ignore),
+	
+	('x$-else prefix*', ('fn$-else prefix*',), ignore),
+	('x$-else prefix*', ('if$-else prefix*',), ignore),
+	
+	('x$-else (prefix* #[x])?', ('fn$-else (prefix* #[x])?',), ignore),
+	('x$-else (prefix* #[x])?', ('if$-else (prefix* #[x])?',), ignore),
+	
+	('x$-else norm_stmt', ('fn$-else norm_stmt',), ignore),
+	('x$-else norm_stmt', ('if$-else norm_stmt',), ignore),
+	
+	('x$-else last_stmt', ('fn$-else last_stmt',), ignore),
+	('x$-else last_stmt', ('if$-else last_stmt',), ignore),
+	
+	('x$-?else', ('fn',), ignore),
+	('x$-?else', ('fn$-else',), ignore),
 	('x$-?else', ('if',), ignore),
 	('x$-?else', ('if$-else',), ignore),
 	
+	('x$-?else prefix*', ('fn', 'prefix*'), ignore),
+	('x$-?else prefix*', ('fn$-else prefix*',), ignore),
 	('x$-?else prefix*', ('if', 'prefix*'), ignore),
 	('x$-?else prefix*', ('if$-else prefix*',), ignore),
 	
+	('x$-?else (prefix* #[x])?', ('fn', '(prefix* #[x])?'), ignore),
+	('x$-?else (prefix* #[x])?', ('fn$-else (prefix* #[x])?',), ignore),
 	('x$-?else (prefix* #[x])?', ('if', '(prefix* #[x])?'), ignore),
 	('x$-?else (prefix* #[x])?', ('if$-else (prefix* #[x])?',), ignore),
 	
+	('x$-?else norm_stmt', ('fn', 'norm_stmt'), ignore),
+	('x$-?else norm_stmt', ('fn$-else norm_stmt',), ignore),
 	('x$-?else norm_stmt', ('if', 'norm_stmt'), ignore),
 	('x$-?else norm_stmt', ('if$-else norm_stmt',), ignore),
 	
+	('x$-?else last_stmt', ('fn', 'last_stmt'), ignore),
+	('x$-?else last_stmt', ('fn$-else last_stmt',), ignore),
 	('x$-?else last_stmt', ('if', 'last_stmt'), ignore),
 	('x$-?else last_stmt', ('if$-else last_stmt',), ignore),
 	
+	('x$-case', ('fn$-case',), ignore),
 	('x$-case', ('if$-case',), ignore),
 	('x$-case', ('match',), ignore),
 	
+	('x$-case prefix*', ('fn$-case prefix*',), ignore),
 	('x$-case prefix*', ('if$-case prefix*',), ignore),
 	('x$-case prefix*', ('match prefix*',), ignore),
 	
+	('x$-case (prefix* #[x])?', ('fn$-case (prefix* #[x])?',), ignore),
 	('x$-case (prefix* #[x])?', ('if$-case (prefix* #[x])?',), ignore),
 	('x$-case (prefix* #[x])?', ('match (prefix* #[x])?',), ignore),
 	
+	('x$-case norm_stmt', ('fn$-case norm_stmt',), ignore),
 	('x$-case norm_stmt', ('if$-case norm_stmt',), ignore),
 	('x$-case norm_stmt', ('match norm_stmt',), ignore),
 	
+	('x$-case last_stmt', ('fn$-case last_stmt',), ignore),
 	('x$-case last_stmt', ('if$-case last_stmt',), ignore),
 	('x$-case last_stmt', ('match last_stmt',), ignore),
 	
+	('x$-?case', ('fn',), ignore),
+	('x$-?case', ('fn$-case',), ignore),
 	('x$-?case', ('if',), ignore),
 	('x$-?case', ('if$-case',), ignore),
 	('x$-?case', ('match',), ignore),
 	
+	('x$-?case prefix*', ('fn', 'prefix*'), ignore),
+	('x$-?case prefix*', ('fn$-case prefix*',), ignore),
 	('x$-?case prefix*', ('if', 'prefix*'), ignore),
 	('x$-?case prefix*', ('if$-case prefix*',), ignore),
 	('x$-?case prefix*', ('match prefix*',), ignore),
 	
+	('x$-?case (prefix* #[x])?', ('fn', '(prefix* #[x])?'), ignore),
+	('x$-?case (prefix* #[x])?', ('fn$-case (prefix* #[x])?',), ignore),
 	('x$-?case (prefix* #[x])?', ('if', '(prefix* #[x])?'), ignore),
 	('x$-?case (prefix* #[x])?', ('if$-case (prefix* #[x])?',), ignore),
 	('x$-?case (prefix* #[x])?', ('match (prefix* #[x])?',), ignore),
 	
+	('x$-?case norm_stmt', ('fn', 'norm_stmt'), ignore),
+	('x$-?case norm_stmt', ('fn$-case norm_stmt',), ignore),
 	('x$-?case norm_stmt', ('if', 'norm_stmt'), ignore),
 	('x$-?case norm_stmt', ('if$-case norm_stmt',), ignore),
 	('x$-?case norm_stmt', ('match norm_stmt',), ignore),
 	
+	('x$-?case last_stmt', ('fn', 'last_stmt'), ignore),
+	('x$-?case last_stmt', ('fn$-case last_stmt',), ignore),
 	('x$-?case last_stmt', ('if', 'last_stmt'), ignore),
 	('x$-?case last_stmt', ('if$-case last_stmt',), ignore),
 	('x$-?case last_stmt', ('match last_stmt',), ignore),
 	
+	('x$-else-case', ('fn$-else-case',), ignore),
 	('x$-else-case', ('if$-else-case',), ignore),
 	('x$-else-case', ('match$-else',), ignore),
 	
+	('x$-else-case prefix*', ('fn$-else-case prefix*',), ignore),
 	('x$-else-case prefix*', ('if$-else-case prefix*',), ignore),
 	('x$-else-case prefix*', ('match$-else prefix*',), ignore),
 	
+	('x$-else-case (prefix* #[x])?', ('fn$-else-case (prefix* #[x])?',), ignore),
 	('x$-else-case (prefix* #[x])?', ('if$-else-case (prefix* #[x])?',), ignore),
 	('x$-else-case (prefix* #[x])?', ('match$-else (prefix* #[x])?',), ignore),
 	
+	('x$-else-case norm_stmt', ('fn$-else-case norm_stmt',), ignore),
 	('x$-else-case norm_stmt', ('if$-else-case norm_stmt',), ignore),
 	('x$-else-case norm_stmt', ('match$-else norm_stmt',), ignore),
 	
+	('x$-else-case last_stmt', ('fn$-else-case last_stmt',), ignore),
 	('x$-else-case last_stmt', ('if$-else-case last_stmt',), ignore),
 	('x$-else-case last_stmt', ('match$-else last_stmt',), ignore),
 	
+	('x$-else-?case', ('fn$-else',), ignore),
+	('x$-else-?case', ('fn$-else-case',), ignore),
 	('x$-else-?case', ('if$-else',), ignore),
 	('x$-else-?case', ('if$-else-case',), ignore),
 	('x$-else-?case', ('match$-else',), ignore),
 	
+	('x$-else-?case prefix*', ('fn$-else prefix*',), ignore),
+	('x$-else-?case prefix*', ('fn$-else-case prefix*',), ignore),
 	('x$-else-?case prefix*', ('if$-else prefix*',), ignore),
 	('x$-else-?case prefix*', ('if$-else-case prefix*',), ignore),
 	('x$-else-?case prefix*', ('match$-else prefix*',), ignore),
 	
+	('x$-else-?case (prefix* #[x])?', ('fn$-else (prefix* #[x])?',), ignore),
+	('x$-else-?case (prefix* #[x])?', ('fn$-else-case (prefix* #[x])?',), ignore),
 	('x$-else-?case (prefix* #[x])?', ('if$-else (prefix* #[x])?',), ignore),
 	('x$-else-?case (prefix* #[x])?', ('if$-else-case (prefix* #[x])?',), ignore),
 	('x$-else-?case (prefix* #[x])?', ('match$-else (prefix* #[x])?',), ignore),
 	
+	('x$-else-?case norm_stmt', ('fn$-else norm_stmt',), ignore),
+	('x$-else-?case norm_stmt', ('fn$-else-case norm_stmt',), ignore),
 	('x$-else-?case norm_stmt', ('if$-else norm_stmt',), ignore),
 	('x$-else-?case norm_stmt', ('if$-else-case norm_stmt',), ignore),
 	('x$-else-?case norm_stmt', ('match$-else norm_stmt',), ignore),
 	
+	('x$-else-?case last_stmt', ('fn$-else last_stmt',), ignore),
+	('x$-else-?case last_stmt', ('fn$-else-case last_stmt',), ignore),
 	('x$-else-?case last_stmt', ('if$-else last_stmt',), ignore),
 	('x$-else-?case last_stmt', ('if$-else-case last_stmt',), ignore),
 	('x$-else-?case last_stmt', ('match$-else last_stmt',), ignore),
 	
+	('x$-?else-case', ('fn$-case',), ignore),
+	('x$-?else-case', ('fn$-else-case',), ignore),
 	('x$-?else-case', ('if$-case',), ignore),
 	('x$-?else-case', ('if$-else-case',), ignore),
 	('x$-?else-case', ('match',), ignore),
 	('x$-?else-case', ('match$-else',), ignore),
 	
+	('x$-?else-case prefix*', ('fn$-case prefix*',), ignore),
+	('x$-?else-case prefix*', ('fn$-else-case prefix*',), ignore),
 	('x$-?else-case prefix*', ('if$-case prefix*',), ignore),
 	('x$-?else-case prefix*', ('if$-else-case prefix*',), ignore),
 	('x$-?else-case prefix*', ('match prefix*',), ignore),
 	('x$-?else-case prefix*', ('match$-else prefix*',), ignore),
 	
+	('x$-?else-case (prefix* #[x])?', ('fn$-case (prefix* #[x])?',), ignore),
+	('x$-?else-case (prefix* #[x])?', ('fn$-else-case (prefix* #[x])?',), ignore),
 	('x$-?else-case (prefix* #[x])?', ('if$-case (prefix* #[x])?',), ignore),
 	('x$-?else-case (prefix* #[x])?', ('if$-else-case (prefix* #[x])?',), ignore),
 	('x$-?else-case (prefix* #[x])?', ('match (prefix* #[x])?',), ignore),
 	('x$-?else-case (prefix* #[x])?', ('match$-else (prefix* #[x])?',), ignore),
 	
+	('x$-?else-case norm_stmt', ('fn$-case norm_stmt',), ignore),
+	('x$-?else-case norm_stmt', ('fn$-else-case norm_stmt',), ignore),
 	('x$-?else-case norm_stmt', ('if$-case norm_stmt',), ignore),
 	('x$-?else-case norm_stmt', ('if$-else-case norm_stmt',), ignore),
 	('x$-?else-case norm_stmt', ('match norm_stmt',), ignore),
 	('x$-?else-case norm_stmt', ('match$-else norm_stmt',), ignore),
 	
+	('x$-?else-case last_stmt', ('fn$-case last_stmt',), ignore),
+	('x$-?else-case last_stmt', ('fn$-else-case last_stmt',), ignore),
 	('x$-?else-case last_stmt', ('if$-case last_stmt',), ignore),
 	('x$-?else-case last_stmt', ('if$-else-case last_stmt',), ignore),
 	('x$-?else-case last_stmt', ('match last_stmt',), ignore),
