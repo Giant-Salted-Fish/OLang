@@ -504,6 +504,7 @@ SYNTAX_RULES = [
 	('norm_stmt', ('prefix*', 'if$-else-case norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match norm_stmt'), ignore),
 	('norm_stmt', ('prefix*', 'match$-else norm_stmt'), ignore),
+	('norm_stmt', ('stmt', ';'), ignore),
 	('norm_stmt', ('assign', ';'), ignore),
 	('norm_stmt', (';',), ignore),
 	
@@ -513,8 +514,15 @@ SYNTAX_RULES = [
 	('last_stmt', ('prefix*', 'if$-else-case last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match last_stmt'), ignore),
 	('last_stmt', ('prefix*', 'match$-else last_stmt'), ignore),
+	('last_stmt', ('stmt',), ignore),
 	('last_stmt', ('assign',), ignore),
 	('last_stmt', (), ignore),
+	
+	
+	('stmt', ('RETURN', 'expr'), ignore),
+	('stmt', ('BREAK', 'expr'), ignore),
+	('stmt', ('BREAK',), ignore),
+	('stmt', ('CONTINUE',), ignore),
 	
 	
 	('expr', ('assign',), ignore),
