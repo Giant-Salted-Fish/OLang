@@ -15,7 +15,7 @@ def ignore(*args):
 	return None
 
 source_code = '''
-(,a)
+.(,a;;let b = let c = d)
 '''
 
 SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
@@ -623,6 +623,19 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
 	('prim', ('(', ')'), ignore),
 	('prim', ('(', 'expr', ')'), ignore),
 	('prim', ('(', 'stmt', ')'), ignore),
+	('prim', ('.(', 'field_lst', ')'), ignore),
+	
+	
+	('field_lst', ('field_lst', '(;|,)', 'field_set'), ignore),
+	('field_lst', ('field_lst', '(;|,)'), ignore),
+	('field_lst', ('field_set',), ignore),
+	('field_lst', (), ignore),
+	('field_set', ('(let|suffixed|..suffixed)',), ignore),
+	('field_set', ('(let|suffixed|..suffixed)', '=', 'field_set'), ignore),
+	('(let|suffixed|..suffixed)', ('prefix*', 'LET', '(suffixed|..suffixed)'), ignore),
+	('(let|suffixed|..suffixed)', ('(suffixed|..suffixed)',), ignore),
+	('(;|,)', (';',), ignore),
+	('(;|,)', (',',), ignore),
 ]
 
 TOKEN_TYPES = [
@@ -636,7 +649,6 @@ TERMINALS = set(t for t, _ in TOKEN_TYPES)
 if __name__ == '__main__':
 	from scanner import Scanner
 	from parser import Syntax, Production
-	import lang_ast
 	
 	with open('result.txt', 'w') as f:
 		def write(obj: Any = ''):
