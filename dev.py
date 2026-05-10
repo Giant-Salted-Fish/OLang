@@ -15,7 +15,7 @@ def ignore(*args):
 	return None
 
 source_code = '''
-fn a b + 1
+(,a)
 '''
 
 SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
@@ -78,8 +78,9 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
 	('union', ('|', 'union..'), ignore),
 	('..union', ('..tuple',), ignore),
 	('..union', ('..tuple', '|', 'union..'), ignore),
-	('union..', ('(tuple|..tuple)', '|', 'union..'), ignore),
-	('union..', ('|', 'union..'), ignore),
+	('union..', ('union..', '|', '(tuple|..tuple)'), ignore),
+	('union..', ('union..', '|'), ignore),
+	('union..', ('(tuple|..tuple)',), ignore),
 	('union..', (), ignore),
 	('(tuple|..tuple)', ('tuple',), ignore),
 	('(tuple|..tuple)', ('..tuple',), ignore),
@@ -90,8 +91,9 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable]] = [
 	('tuple', (',', 'tuple..',), ignore),
 	('..tuple', ('..suffixed',), ignore),
 	('..tuple', ('..suffixed', ',', 'tuple..'), ignore),
-	('tuple..', ('(suffixed|..suffixed)', ',', 'tuple..'), ignore),
-	('tuple..', (',', 'tuple..'), ignore),
+	('tuple..', ('tuple..', ',', '(suffixed|..suffixed)'), ignore),
+	('tuple..', ('tuple..', ','), ignore),
+	('tuple..', ('(suffixed|..suffixed)',), ignore),
 	('tuple..', (), ignore),
 	('(suffixed|..suffixed)', ('suffixed',), ignore),
 	('(suffixed|..suffixed)', ('..suffixed',), ignore),
