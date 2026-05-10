@@ -21,7 +21,11 @@ class Item[N, T, R](NamedTuple):
 	@override
 	def __str__(self) -> str:
 		prod = self.production
-		rhs = map(str, (*prod.rhs[:self.dot_pos], '.', *prod.rhs[self.dot_pos:]))
+		def to_str(item):
+			s = str(item)
+			is_spaced = ' ' in s and (s[0] == '(' and s[-1] == ')')
+			return f'({s})' if is_spaced else s
+		rhs = map(to_str, (*prod.rhs[:self.dot_pos], '.', *prod.rhs[self.dot_pos:]))
 		lkahd = map(str, self.lookahead)
 		return f'{prod.lhs} -> {' '.join(rhs)} {{{', '.join(lkahd)}}}'
 	

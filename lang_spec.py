@@ -297,8 +297,8 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	("prefixed_call..", ("prefixed_call",), lambda x: x),
 	("prefixed_call..", ("arg",), lambda x: x),
 	
-	# call: postfixed+ (decl|..bound|prefixed)
-	("call", ("postfixed+", "arg"), lambda func, arg: NodeCall(func, arg)),
+	# call: postfixed+ prefixed_call..
+	("call", ("postfixed+", "prefixed_call.."), lambda func, arg: NodeCall(func, arg)),
 	("arg", ("decl",), lambda x: x),
 	("arg", ("..bound",), lambda x: x),
 	("arg", ("prefixed",), lambda x: x),
@@ -370,13 +370,13 @@ SYNTAX_RULES: list[tuple[str, tuple[str, ...], Callable[..., Any]]] = [
 	
 	# element_lst: element_lst , element
 	#            | element?
-	("element_lst", ("element_lst", ",", "(suffixed|..suffixed)"), lambda xs, COMMA, x: (*xs, x)),
+	("element_lst", ("(suffixed|..suffixed)", ",", "element_lst"), lambda x, COMMA, xs: (x, *xs)),
 	("element_lst", ("(suffixed|..suffixed)",), lambda x: (x,)),
 	("element_lst", (), lambda: ()),
 	
 	# field_lst: field_lst (;|,) field_set
 	#          | field_set?
-	("field_lst", ("field_lst", "(;|,)", "field_set"), lambda xs, SEMI, x: (*xs, x)),
+	("field_lst", ("field_set", "(;|,)", "field_lst"), lambda x, SEMI, xs: (x, *xs)),
 	("field_lst", ("field_set",), lambda x: (x,)),
 	("field_lst", (), lambda: ()),
 	("field_set", ("prefix*", "LET", "(suffixed|..suffixed)", "=", "(suffixed|..suffixed)"), lambda attr, LET, prop, EQ, val: NodeAssign(NodeDecl(prop).AppendPrefix(*attr), val)),
