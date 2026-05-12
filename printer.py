@@ -185,6 +185,17 @@ class ToOLangCode(lang_ast.Visitor[list[str]]):
 		return self._AppendAttrText(node, lines)
 	
 	@override
+	def VisitMatchCase(self, node: lang_ast.NodeMatchCase) -> list[str]:
+		val = node.val.Accept(self)
+		lines = []
+		for pair in node.branch:
+			pattern = pair[0].Accept(self)
+			body = pair[1].Accept(self)
+			lines += self._JoinText(" ", ["case"], pattern, body)
+		lines = self._JoinText(" ", ["match"], *lines)
+		return self._AppendAttrText(node, lines)
+	
+	@override
 	def VisitNamedTuple(self, node: lang_ast.NodeNamedTuple) -> list[str]:
 		lines = node.body.Accept(self)
 		lines = self._PrefixText("tuple ", lines)

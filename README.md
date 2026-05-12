@@ -285,16 +285,16 @@ let result = (
 );
 ```
 
-直接在顶层使用时结尾的 `else` 分支与最后的分号都可以省略：
+直接在顶层使用时结尾的分号可以省略：
 
 ```
-// 顶层使用时可省略 else 分支和分号
+// 顶层使用时可省略分号
 if cond {
     "Hello"
 }
 
 // 其它情况下不可省略
-let result = if cond { "Hello" } else { "World" };
+let result = if cond { "Hello" };
 ```
 
 #### 类型注解

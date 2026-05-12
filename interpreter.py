@@ -304,6 +304,11 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 		return super().VisitForElse(node)
 	
 	@override
+	def VisitMatchCase(self, node: lang_ast.NodeMatchCase) -> tuple[Any, ControlState]:
+		# FIXME
+		return super().VisitMatchCase(node)
+	
+	@override
 	def VisitNamedTuple(self, node: lang_ast.NodeNamedTuple) -> tuple[Any, ControlState]:
 		return lambda arg: (arg, ControlState.PASS), ControlState.PASS
 	
@@ -415,6 +420,10 @@ class Declare(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitForElse(self, node: lang_ast.NodeForElse) -> None:
+		raise RuntimeError
+	
+	@override
+	def VisitMatchCase(self, node: lang_ast.NodeMatchCase) -> None:
 		raise RuntimeError
 	
 	@override
@@ -548,6 +557,10 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitForElse(self, node: lang_ast.NodeForElse) -> None:
+		raise RuntimeError
+	
+	@override
+	def VisitMatchCase(self, node: lang_ast.NodeMatchCase) -> None:
 		raise RuntimeError
 	
 	@override

@@ -126,7 +126,7 @@ class NodeAssign(Node):
 
 class NodeFunc(Node):
 	@override
-	def __init__(self, param: Node, body: NodeCompound | NodeStruct) -> None:
+	def __init__(self, param: Node, body: Node) -> None:
 		self.param = param
 		self.body = body
 	
@@ -141,7 +141,7 @@ class NodeFunc(Node):
 
 class NodeTemplate(Node):
 	@override
-	def __init__(self, param: Node, body: NodeCompound | NodeStruct) -> None:
+	def __init__(self, param: Node, body: Node) -> None:
 		self.param = param
 		self.body = body
 	
@@ -328,7 +328,7 @@ class NodeContinue(Node):
 
 class NodeIfElse(Node):
 	@override
-	def __init__(self, cond: Node, true_branch: NodeCompound | NodeStruct, false_branch: NodeCompound | NodeStruct) -> None:
+	def __init__(self, cond: Node, true_branch: Node, false_branch: Node) -> None:
 		self.cond = cond
 		self.true_branch = true_branch
 		self.false_branch = false_branch
@@ -344,7 +344,7 @@ class NodeIfElse(Node):
 
 class NodeWhileElse(Node):
 	@override
-	def __init__(self, cond: Node, loop_body: NodeCompound | NodeStruct, else_branch: NodeCompound | NodeStruct) -> None:
+	def __init__(self, cond: Node, loop_body: Node, else_branch: Node) -> None:
 		self.cond = cond
 		self.loop_body = loop_body
 		self.else_branch = else_branch
@@ -360,7 +360,7 @@ class NodeWhileElse(Node):
 
 class NodeForElse(Node):
 	@override
-	def __init__(self, iterable: Node, var: Node, loop_body: NodeCompound | NodeStruct, else_branch: NodeCompound | NodeStruct) -> None:
+	def __init__(self, iterable: Node, var: Node, loop_body: Node, else_branch: Node) -> None:
 		self.iterable = iterable
 		self.var = var
 		self.loop_body = loop_body
@@ -373,6 +373,21 @@ class NodeForElse(Node):
 	@override
 	def Accept[T](self, visitor: Visitor[T]) -> T:
 		return visitor.VisitForElse(self)
+
+
+class NodeMatchCase(Node):
+	@override
+	def __init__(self, val: Node, branch: tuple[tuple[Node, Node], ...]) -> None:
+		self.val = val
+		self.branch = branch
+	
+	@override
+	def __repr__(self) -> str:
+		return self._GenStr(f"{self.val}, {self.branch}")
+	
+	@override
+	def Accept[T](self, visitor: Visitor[T]) -> T:
+		return visitor.VisitMatchCase(self)
 
 
 class NodeNamedTuple(Node):
@@ -498,6 +513,10 @@ class Visitor[T](ABC):
 	
 	@abstractmethod
 	def VisitForElse(self, node: NodeForElse) -> T:
+		pass
+	
+	@abstractmethod
+	def VisitMatchCase(self, node: NodeMatchCase) -> T:
 		pass
 	
 	@abstractmethod
