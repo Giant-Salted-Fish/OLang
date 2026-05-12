@@ -10,7 +10,7 @@ class Production[N, T, R](NamedTuple):
 	
 	@override
 	def __repr__(self) -> str:
-		return f"{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}"
+		return f'{self.lhs} -> {' '.join(str(s) for s in self.rhs) if self.rhs else 'ε'}'
 
 
 class Item[N, T, R](NamedTuple):
@@ -31,7 +31,7 @@ class Item[N, T, R](NamedTuple):
 	
 	@override
 	def __repr__(self) -> str:
-		return f"{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})"
+		return f'{self.__class__.__name__}(prod={self.production}, dot={self.dot_pos}, lookahead={self.lookahead})'
 
 
 class Syntax[N, T, R]:
@@ -154,11 +154,11 @@ class Syntax[N, T, R]:
 				item = working_set.pop()
 				for terminal in item.lookahead:
 					if (sid, terminal) in shift_table:
-						print(f"Potential shift-reduce conflict: {terminal}")
+						print(f'Potential shift-reduce conflict: {terminal}')
 						continue
 					
 					if (sid, terminal) in reduce_table:
-						raise Exception(f"Detect reduce-reduce conflict: {terminal}")
+						raise Exception(f'Detect reduce-reduce conflict: {terminal}')
 					
 					reduce_table[sid, terminal] = item.production
 			return sid
@@ -175,11 +175,11 @@ class Syntax[N, T, R]:
 		accept = False
 		for token in token_stream:
 			if accept:
-				raise Exception("Unexpected end of input")
+				raise Exception('Unexpected end of input')
 			
 			# TODO: This is a hack
 			token_type = token.GetType()
-			if token_type == "COMMENT":
+			if token_type == 'COMMENT':
 				continue
 			
 			while True:
@@ -211,10 +211,10 @@ class Syntax[N, T, R]:
 							following = production.rhs[dot_pos]
 							if self._is_terminal(following):
 								terminals.add(following)
-					raise Exception(f"Syntax error at line {token.GetLineNum()} column {token.GetColumnNum()}: Expect {terminals}.")
+					raise Exception(f'Syntax error at line {token.GetLineNum()} column {token.GetColumnNum()}: Expect {terminals}.')
 				
 				if len(productions) > 1:
-					raise Exception("Detect reduce-reduce conflict! Your grammar is ambiguous.")
+					raise Exception('Detect reduce-reduce conflict! Your grammar is ambiguous.')
 				
 				reduce_rule = productions[0]
 				split_idx = len(action_stack) - len(reduce_rule.rhs)
@@ -237,7 +237,7 @@ class Syntax[N, T, R]:
 				state_stack.append(new_state)
 		
 		if not accept:
-			raise Exception("Not enough tokens")
+			raise Exception('Not enough tokens')
 		return action_stack[-1]  # type: ignore
 	
 	@classmethod
@@ -299,7 +299,7 @@ class Parser[N, T, R]:
 	
 	@override
 	def __str__(self) -> str:
-		return f"{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})"
+		return f'{self.__class__.__name__}(state_table_size={len(self._state_table)}, shift_table_size={len(self._shift_table)}, reduce_table_size={len(self._reduce_table)}, goto_table_size={len(self._goto_table)})'
 	
 	def Parse(self, token_stream: Iterator[Token[T]]) -> R:
 		state_stack = [0]
@@ -307,10 +307,10 @@ class Parser[N, T, R]:
 		accept = False
 		for token in token_stream:
 			if accept:
-				raise Exception("Too much tokens")
+				raise Exception('Too much tokens')
 			
 			# TODO: This is a hack
-			if token.GetType() == "COMMENT":
+			if token.GetType() == 'COMMENT':
 				continue
 			
 			while True:
@@ -336,10 +336,10 @@ class Parser[N, T, R]:
 					next_state = self._goto_table[key]
 					state_stack.append(next_state)
 				else:
-					raise Exception("No solution")
+					raise Exception('No solution')
 		
 		if not accept:
-			raise Exception("Not enough tokens")
+			raise Exception('Not enough tokens')
 		return action_stack[-1]  # type: ignore
 	
 	def Serialize(self, line_writer: Callable[[str], None]) -> None:

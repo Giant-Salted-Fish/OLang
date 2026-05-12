@@ -26,7 +26,7 @@ class Token[T]:
 	
 	@override
 	def __str__(self) -> str:
-		return f"Token(type={repr(self.GetType())}, value={repr(self.GetText())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))"
+		return f'Token(type={repr(self.GetType())}, value={repr(self.GetText())}, at=({self.GetLineNum()}, {self.GetColumnNum()}))'
 
 
 class Scanner[T]:
@@ -59,7 +59,7 @@ class Scanner[T]:
 						token_len = match_len
 						token_type = type_
 				if token_len == 0:
-					raise ValueError(f"Invalid token at line={line_num + 1}, column={col_idx + 1}")
+					raise ValueError(f'Invalid token at line={line_num + 1}, column={col_idx + 1}')
 				
 				yield Token(token_type, lines, line_num, col_idx, token_len)
 				
@@ -78,5 +78,5 @@ class Scanner[T]:
 				return m.end() - offset
 			return match
 		match_lst = tuple((type_, build_matcher(pattern)) for type_, pattern in types)
-		match_space = build_matcher(r"\s*")
+		match_space = build_matcher(r'\s*')
 		return Scanner(match_lst, match_space)

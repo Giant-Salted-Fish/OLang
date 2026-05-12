@@ -25,7 +25,7 @@ class Environment:
 		elif self._parent is not None:
 			return self._parent.Resolve(symbol)
 		else:
-			raise RuntimeError(f"Cannot resolve variable <{symbol}>")
+			raise RuntimeError(f'Cannot resolve variable <{symbol}>')
 	
 	def Push(self, symbol: str, value: Any) -> None:
 		assert symbol not in self._local_table
@@ -40,7 +40,7 @@ class Environment:
 		if symbol in self._local_table:
 			self._local_table[symbol] = value
 		else:
-			assert self._parent is not None, f"No variable named \"{symbol}\" to update"
+			assert self._parent is not None, f'No variable named \'{symbol}\' to update'
 			self._parent.Update(symbol, value)
 	
 	def GetLocals(self) -> dict[str, Any]:
@@ -71,7 +71,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitBool(self, node: lang_ast.NodeBool) -> tuple[Any, ControlState]:
-		return node.token.GetText().lower() == "true", ControlState.PASS
+		return node.token.GetText().lower() == 'true', ControlState.PASS
 	
 	@override
 	def VisitLabel(self, node: lang_ast.NodeLabel) -> tuple[Any, ControlState]:
@@ -140,7 +140,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitUnion(self, node: lang_ast.NodeUnion) -> tuple[Any, ControlState]:
-		raise RuntimeError("Cannot evaluate union")
+		raise RuntimeError('Cannot evaluate union')
 	
 	@override
 	def VisitTuple(self, node: lang_ast.NodeTuple) -> tuple[Any, ControlState]:
@@ -165,7 +165,7 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	
 	@override
 	def VisitLogicalOp(self, node: lang_ast.NodeLogicalOp) -> tuple[Any, ControlState]:
-		short_val = node.op.GetType() == "||"
+		short_val = node.op.GetType() == '||'
 		val, ctrl = node.lhs.Accept(self)
 		if ctrl is not ControlState.PASS:
 			return val, ctrl
@@ -191,30 +191,30 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	@staticmethod
 	def _ExecuteBinaryOp(op: scanner.Token, x: Any, y: Any) -> Any:
 		match op.GetType():
-			case "+":
+			case '+':
 				return x + y
-			case "-":
+			case '-':
 				return x - y
-			case "*":
+			case '*':
 				return x * y
-			case "/":
+			case '/':
 				return x / y
-			case "%":
+			case '%':
 				return x % y
-			case "==":
+			case '==':
 				return x == y
-			case "!=":
+			case '!=':
 				return x != y
-			case "<=":
+			case '<=':
 				return x <= y
-			case ">=":
+			case '>=':
 				return x >= y
-			case "<":
+			case '<':
 				return x < y
-			case ">":
+			case '>':
 				return x > y
 			case _:
-				raise ValueError(f"Unknown operator: {op}")
+				raise ValueError(f'Unknown operator: {op}')
 	
 	@override
 	def VisitUnaryOp(self, node: lang_ast.NodeUnaryOp) -> tuple[Any, ControlState]:
@@ -226,14 +226,14 @@ class Evaluate(lang_ast.Visitor[tuple[Any, ControlState]]):
 	@staticmethod
 	def _ExecuteUnaryOp(op: scanner.Token, val: Any) -> Any:
 		match op.GetText():
-			case "+":
+			case '+':
 				return val
-			case "-":
+			case '-':
 				return -val
-			case "!":
+			case '!':
 				return not val
 			case _:
-				raise ValueError(f"Unknown operator: {op}")
+				raise ValueError(f'Unknown operator: {op}')
 	
 	@override
 	def VisitAccess(self, node: lang_ast.NodeAccess) -> tuple[Any, ControlState]:
@@ -340,7 +340,7 @@ class Declare(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitCompound(self, node: lang_ast.NodeCompound) -> None:
-		assert len(node.nodes) == 1, "Declare compound node with more than one statement"
+		assert len(node.nodes) == 1, 'Declare compound node with more than one statement'
 		node.nodes[0].Accept(self)
 	
 	@override
@@ -451,7 +451,7 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitBool(self, node: lang_ast.NodeBool) -> None:
-		assert isinstance(self.val, bool) and self.val == (node.token.GetText().lower() == "true")
+		assert isinstance(self.val, bool) and self.val == (node.token.GetText().lower() == 'true')
 	
 	@override
 	def VisitLabel(self, node: lang_ast.NodeLabel) -> None:
@@ -459,7 +459,7 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitCompound(self, node: lang_ast.NodeCompound) -> None:
-		assert len(node.nodes) == 1, "Unwind compound node with more than one statement"
+		assert len(node.nodes) == 1, 'Unwind compound node with more than one statement'
 		node.nodes[0].Accept(self)
 	
 	@override
@@ -495,7 +495,7 @@ class Unwind(lang_ast.Visitor[None]):
 	
 	@override
 	def VisitStruct(self, node: lang_ast.NodeStruct) -> None:
-		assert isinstance(self.val, dict), f"Expect dict (struct), got {type(self.val)}"
+		assert isinstance(self.val, dict), f'Expect dict (struct), got {type(self.val)}'
 		scope = Environment(None, [], self.val)
 		eva = Evaluate(scope)
 		for field in node.fields:

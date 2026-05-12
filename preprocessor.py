@@ -257,7 +257,7 @@ class IdentityProcessor(lang_ast.Visitor[lang_ast.Node]):
 
 class IdAnnotationProcessor(IdentityProcessor):
 	@override
-	def __init__(self, annotation="id") -> None:
+	def __init__(self, annotation='id') -> None:
 		self.annotation = annotation
 	
 	def CheckAnnotation(self, annotation: lang_ast.Node) -> bool:
