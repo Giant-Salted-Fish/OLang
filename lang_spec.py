@@ -33,7 +33,7 @@ TOKEN_TYPES = [
 	('BOOL', r'TRUE|FALSE|true|false'),
 	('INT', r'[0-9]\d*'),
 	('IDENT', r'[a-zA-Z_\$][a-zA-Z0-9_\$]*'),
-	('STR', r'\'(?:[^\'\\]|\\[tnr])*\''),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
+	('STR', r'\"(?:[^\'\\]|\\[tnr])*\"'),  # See https://github.com/antlr/grammars-v4/blob/master/java/java8/Java8Lexer.g4
 	
 	('#[', r'#\['),
 	('.{', r'\.\{'),
